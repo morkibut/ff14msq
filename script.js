@@ -47,7 +47,7 @@ async function init() {
     datasetRef.current = dataset;
     loading = false;
     datasetRef.loading = false;
-    document.getElementById('search').disabled = false;
+    document.getElementById('searchInput').disabled = false;
     setProgress(100);
     log(`Prêt. ${dataset.length} entrées dans l’index`);
   } catch (e) {

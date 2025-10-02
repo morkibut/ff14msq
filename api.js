@@ -51,7 +51,7 @@ export function filterFreeModels(models) {
 }
 
 // ---------- Génération de résumé avec OpenRouter ----------
-export async function generateSummary(settings, questName, questId, textChunks) {
+export async function generateSummary(settings, questName, questId, textChunks, onChunk) {
   if (!settings.key) throw new Error('Clé OpenRouter manquante.');
   const langLine = settings.fr ? 'Rédige en FRANÇAIS.' : 'Write in ENGLISH.';
   const lenLine = settings.short ? 'Longueur: 2 à 3 phrases, max 70 mots.' : 'Longueur: 3 à 5 phrases, max 120 mots.';
@@ -60,7 +60,7 @@ export async function generateSummary(settings, questName, questId, textChunks) 
     { role: 'system', content: 'Tu es un assistant qui résume strictement le récit et les dialogues d’une quête FFXIV sans spoiler au‑delà de cette quête.' },
     { role: 'user', content: `${langLine}\n${lenLine}\nStyle: clair, narratif, sans bullet points. Pas de mécaniques de gameplay. Pas de spoiler futur.\n\nTitre de la quête: ${questName} (ID ${questId}).\nExtraits fournis (dialogues/journal):\n---\n${src}\n---\nRédige un résumé fidèle et concis.` }
   ];
-  const body = { model: settings.model, messages, temperature: 0.4, max_tokens: settings.short ? 160 : 300 };
+  const body = { model: settings.model, messages, temperature: 0.4, max_tokens: settings.short ? 160 : 300, stream: true };
   const resp = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -72,8 +72,36 @@ export async function generateSummary(settings, questName, questId, textChunks) 
     body: JSON.stringify(body)
   });
   if (!resp.ok) { throw new Error(`HTTP ${resp.status}: ${await resp.text()}`); }
-  const data = await resp.json();
-  return (data.choices?.[0]?.message?.content || '').trim();
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') return fullText.trim();
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content || '';
+          if (content) {
+            fullText += content;
+            if (onChunk) onChunk(content);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+  }
+  return fullText.trim();
 }
 
 // ---------- Détail d'une quête ----------

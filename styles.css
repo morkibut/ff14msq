@@ -7,10 +7,10 @@
   --bg: #0f0f23; /* Noir presque */
   --card: #1a1a2e;
   --border: #ffd700;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --error: #dc2626;
-  --success: #10b981;
+  --text: #ffffff; /* Blanc pour meilleure lisibilité */
+  --muted: #cccccc; /* Plus clair */
+  --error: #ff6b6b;
+  --success: #51cf66;
 }
 
 * {
@@ -19,6 +19,7 @@
 
 body {
   font-family: 'Cinzel', serif;
+  font-size: 16px;
   max-width: 980px;
   margin: 32px auto;
   background: var(--bg);
@@ -39,19 +40,19 @@ header {
 
 h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 32px;
   color: var(--primary);
   text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 .btn {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: 2px solid var(--border);
   background: var(--card);
   color: var(--text);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-family: 'Cinzel', serif;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -105,7 +106,7 @@ h1 {
 
 input[type="text"], input[type="password"], select {
   padding: 12px 14px;
-  font-size: 15px;
+  font-size: 16px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
@@ -225,6 +226,16 @@ dialog h3 {
   margin: 0 0 12px 0;
   color: var(--primary);
   font-size: 20px;
+}
+
+dialog label div {
+  font-size: 16px;
+  color: var(--text) !important;
+  margin-bottom: 4px;
+}
+
+.checkbox {
+  color: var(--text);
 }
 
 /* Onglets */

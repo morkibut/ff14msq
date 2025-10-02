@@ -9,8 +9,13 @@ const bar = document.getElementById('bar');
 const onlyMsq = document.getElementById('onlyMsq');
 const btnSettings = document.getElementById('btnSettings');
 const btnTest = document.getElementById('btnTest');
+const btnRefreshModels = document.getElementById('btnRefreshModels');
 const dlg = document.getElementById('settingsDialog');
 const orModelSelect = document.getElementById('orModel');
+const summaryDialog = document.getElementById('summaryDialog');
+const summaryPrompt = document.getElementById('summaryPrompt');
+const summaryResponse = document.getElementById('summaryResponse');
+const closeSummaryDialog = document.getElementById('closeSummaryDialog');
 
 // ---------- Onglets ----------
 const tabButtons = document.querySelectorAll('.tab-button');
@@ -91,6 +96,38 @@ export function updateModelSelect(models) {
   orModelSelect.value = s.model;
 }
 
+export async function refreshModels() {
+  const s = getSettings();
+  if (!s.key) {
+    alert('Renseigne ta clé OpenRouter dans Paramètres.');
+    return;
+  }
+  try {
+    btnRefreshModels.disabled = true;
+    btnRefreshModels.textContent = 'Chargement…';
+    log('Actualisation des modèles OpenRouter…');
+    const models = await fetchOpenRouterModels(s.key);
+    const freeModels = filterFreeModels(models);
+    updateModelSelect(freeModels);
+    log(`Modèles gratuits actualisés: ${freeModels.length}`);
+    alert(`Modèles actualisés ! ${freeModels.length} modèles gratuits disponibles.`);
+  } catch (e) {
+    log('Erreur actualisation modèles: ' + e.message);
+    // Fallback aux modèles statiques
+    updateModelSelect([
+      { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B Instruct (gratuit)' },
+      { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B IT (gratuit)' },
+      { id: 'mistralai/mixtral-8x7b-instruct:free', name: 'Mixtral 8x7B Instruct (gratuit)' },
+      { id: 'qwen/qwen2.5-7b-instruct:free', name: 'Qwen2.5 7B Instruct (gratuit)' },
+      { id: 'openrouter/auto', name: 'OpenRouter Auto' }
+    ]);
+    alert('Erreur lors de l\'actualisation. Modèles par défaut utilisés.');
+  } finally {
+    btnRefreshModels.disabled = false;
+    btnRefreshModels.textContent = 'Actualiser';
+  }
+}
+
 // ---------- Recherche ----------
 export function doSearch(allQuests, dataset, term) {
   const q = term.toLowerCase();
@@ -123,7 +160,7 @@ export function rebuildDataset(allQuests, onlyMsqChecked) {
 }
 
 // ---------- Ouverture d’une quête & Génération du résumé ----------
-import { fetchQuestDetail, extractTextChunks, generateSummary } from './api.js';
+import { fetchQuestDetail, extractTextChunks, generateSummary, fetchOpenRouterModels, filterFreeModels } from './api.js';
 
 export async function openQuestWithSummary(id, container, allQuests) {
   try {
@@ -146,13 +183,24 @@ export async function openQuestWithSummary(id, container, allQuests) {
 
     const btn = document.getElementById(`btnGen-${id}`);
     const out = document.getElementById(`sum-${id}`);
+    closeSummaryDialog.addEventListener('click', () => summaryDialog.close());
     btn.addEventListener('click', async () => {
       try {
         btn.disabled = true;
         btn.textContent = 'Génération en cours…';
         const chunks = extractTextChunks(detail);
         if (!chunks.length) throw new Error('Aucun texte exploitable (TextData vide).');
-        const txt = await generateSummary(getSettings(), name, id, chunks);
+        const settings = getSettings();
+        const langLine = settings.fr ? 'Rédige en FRANÇAIS.' : 'Write in ENGLISH.';
+        const lenLine = settings.short ? 'Longueur: 2 à 3 phrases, max 70 mots.' : 'Longueur: 3 à 5 phrases, max 120 mots.';
+        const src = chunks.filter(Boolean).join('\n').slice(0, 6000);
+        const prompt = `${langLine}\n${lenLine}\nStyle: clair, narratif, sans bullet points. Pas de mécaniques de gameplay. Pas de spoiler futur.\n\nTitre de la quête: ${name} (ID ${id}).\nExtraits fournis (dialogues/journal):\n---\n${src}\n---\nRédige un résumé fidèle et concis.`;
+        summaryPrompt.textContent = prompt;
+        summaryResponse.textContent = '';
+        summaryDialog.showModal();
+        const txt = await generateSummary(settings, name, id, chunks, (chunk) => {
+          summaryResponse.textContent += chunk;
+        });
         out.style.display = 'block';
         out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
       } catch (e) {
@@ -162,6 +210,7 @@ export async function openQuestWithSummary(id, container, allQuests) {
       } finally {
         btn.disabled = false;
         btn.textContent = 'Générer le résumé IA';
+        summaryDialog.close();
       }
     });
   } catch (e) {
@@ -205,6 +254,8 @@ export function initEvents(allQuests, datasetRef) {
       alert('Erreur test: ' + e.message);
     }
   });
+
+  btnRefreshModels.addEventListener('click', refreshModels);
 
   onlyMsq.addEventListener('change', () => {
     datasetRef.current = rebuildDataset(allQuests, onlyMsq.checked);

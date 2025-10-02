@@ -51,13 +51,16 @@
         </label>
         <label style="display:block;">
           <div style="font-size:13px; color:#334155; margin-bottom:4px;">Modèle OpenRouter</div>
-          <select id="orModel">
-            <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B Instruct (gratuit, souvent)</option>
-            <option value="google/gemma-2-9b-it:free">Gemma 2 9B IT (gratuit, souvent)</option>
-            <option value="mistralai/mixtral-8x7b-instruct:free">Mixtral 8x7B Instruct (gratuit, souvent)</option>
-            <option value="qwen/qwen2.5-7b-instruct:free">Qwen2.5 7B Instruct (gratuit, souvent)</option>
-            <option value="openrouter/auto">OpenRouter Auto (sélection auto)</option>
-          </select>
+          <div style="display:flex; gap:8px; align-items:flex-end;">
+            <select id="orModel" style="flex:1;">
+              <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B Instruct (gratuit, souvent)</option>
+              <option value="google/gemma-2-9b-it:free">Gemma 2 9B IT (gratuit, souvent)</option>
+              <option value="mistralai/mixtral-8x7b-instruct:free">Mixtral 8x7B Instruct (gratuit, souvent)</option>
+              <option value="qwen/qwen2.5-7b-instruct:free">Qwen2.5 7B Instruct (gratuit, souvent)</option>
+              <option value="openrouter/auto">OpenRouter Auto (sélection auto)</option>
+            </select>
+            <button class="btn" id="btnRefreshModels" style="padding:6px 12px; font-size:12px;">Actualiser</button>
+          </div>
           <div class="muted">Choisis un modèle marqué « :free » pour éviter des frais.</div>
         </label>
         <div class="row">
@@ -70,6 +73,25 @@
         <button class="btn primary" id="saveSettings" value="default">Enregistrer</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Modal Résumé IA -->
+  <dialog id="summaryDialog">
+    <div class="inner">
+      <h3>Génération du résumé IA</h3>
+      <div style="margin-bottom: 16px;">
+        <strong>Prompt envoyé à l'IA :</strong>
+        <div id="summaryPrompt" style="margin-top: 8px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto;"></div>
+      </div>
+      <div>
+        <strong>Réponse de l'IA :</strong>
+        <div id="summaryResponse" style="margin-top: 8px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; min-height: 100px; font-family: monospace; font-size: 14px; white-space: pre-wrap;"></div>
+      </div>
+      <div class="row" style="justify-content: flex-end; margin-top: 16px;">
+        <button class="btn" id="closeSummaryDialog">Fermer</button>
+      </div>
+    </div>
+  </dialog>
   </dialog>
 
   <script type="module" src="script.js"></script>
