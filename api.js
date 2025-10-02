@@ -46,11 +46,8 @@ export async function fetchOpenRouterModels(apiKey) {
 }
 
 export function filterFreeModels(models) {
-  // Filtrer les modèles gratuits : ceux avec pricing.prompt = 0 et pricing.completion = 0
-  return models.filter(model => {
-    const pricing = model.pricing || {};
-    return pricing.prompt === 0 && pricing.completion === 0;
-  });
+  // Filtrer les modèles gratuits : ceux dont l'id contient ":free"
+  return models.filter(model => model.id && model.id.includes(':free'));
 }
 
 // ---------- Génération de résumé avec OpenRouter ----------
