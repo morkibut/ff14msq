@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FFXIV MSQ — Recherche & Résumé IA</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>FFXIV MSQ — Recherche & Résumé IA</h1>
+    <div class="row">
+      <button class="btn" id="btnTest">Tester la connexion</button>
+      <button class="btn" id="btnSettings">Paramètres</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-button" data-tab="search">Recherche</button>
+    <button class="tab-button" data-tab="logs">Logs</button>
+  </div>
+
+  <div id="search" class="tab-content">
+    <div class="card">
+      <div class="controls">
+        <input id="searchInput" type="text" placeholder="Tape un mot du nom de la quête (FR/EN)" disabled>
+        <label class="checkbox"><input type="checkbox" id="onlyMsq" checked> MSQ uniquement</label>
+      </div>
+      <div class="status" id="status">Chargement des quêtes…</div>
+      <div class="progress"><div id="bar"></div></div>
+      <div id="results" class="results"></div>
+      <div class="muted">Astuce : essaye des morceaux connus de MSQ (ex : « Before the Dawn », « Le pardon de la colère », « A Realm Reborn »).</div>
+    </div>
+  </div>
+
+  <div id="logs" class="tab-content">
+    <div class="card">
+      <h3>Logs en direct</h3>
+      <div id="logsDiv"></div>
+    </div>
+  </div>
+
+  <!-- Modal Paramètres -->
+  <dialog id="settingsDialog">
+    <form method="dialog" class="inner">
+      <h3 style="margin:0 0 10px 0;">Paramètres</h3>
+      <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+        <label style="display:block;">
+          <div style="font-size:13px; color:#334155; margin-bottom:4px;">Clé API OpenRouter</div>
+          <input type="password" id="orKey" placeholder="sk-or-..." />
+        </label>
+        <label style="display:block;">
+          <div style="font-size:13px; color:#334155; margin-bottom:4px;">Modèle OpenRouter</div>
+          <select id="orModel">
+            <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B Instruct (gratuit, souvent)</option>
+            <option value="google/gemma-2-9b-it:free">Gemma 2 9B IT (gratuit, souvent)</option>
+            <option value="mistralai/mixtral-8x7b-instruct:free">Mixtral 8x7B Instruct (gratuit, souvent)</option>
+            <option value="qwen/qwen2.5-7b-instruct:free">Qwen2.5 7B Instruct (gratuit, souvent)</option>
+            <option value="openrouter/auto">OpenRouter Auto (sélection auto)</option>
+          </select>
+          <div class="muted">Choisis un modèle marqué « :free » pour éviter des frais.</div>
+        </label>
+        <div class="row">
+          <label class="checkbox"><input type="checkbox" id="sumFR" checked> Résumé en français</label>
+          <label class="checkbox"><input type="checkbox" id="sumShort" checked> Court (2–3 phrases)</label>
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end; margin-top:12px; gap:8px;">
+        <button class="btn" value="cancel">Annuler</button>
+        <button class="btn primary" id="saveSettings" value="default">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
