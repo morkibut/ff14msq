@@ -267,3 +267,8 @@ dialog label div {
 .tab-content.active {
   display: block;
 }
+
+/* Styles pour les labels du modal résumé IA */
+#summaryDialog strong {
+  color: var(--text);
+}
