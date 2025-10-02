@@ -276,3 +276,7 @@ dialog label div {
 #summaryPrompt, #summaryResponse {
   color: var(--text);
 }
+
+#summaryPrompt {
+  display: none;
+}

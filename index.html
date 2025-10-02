@@ -80,12 +80,15 @@
     <div class="inner">
       <h3>Génération du résumé IA</h3>
       <div style="margin-bottom: 16px;">
-        <strong>Prompt envoyé à l'IA :</strong>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong>Prompt envoyé à l'IA :</strong>
+          <button id="togglePrompt" class="btn" style="font-size:12px; padding:4px 8px;">Masquer</button>
+        </div>
         <div id="summaryPrompt" style="margin-top: 8px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto;"></div>
       </div>
       <div>
         <strong>Réponse de l'IA :</strong>
-        <div id="summaryResponse" style="margin-top: 8px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; min-height: 100px; font-family: monospace; font-size: 14px; white-space: pre-wrap;"></div>
+        <div id="summaryResponse" style="margin-top: 8px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; min-height: 100px; font-family: monospace; font-size: 18px; white-space: pre-wrap;"></div>
       </div>
       <div class="row" style="justify-content: flex-end; margin-top: 16px;">
         <button class="btn" id="closeSummaryDialog">Fermer</button>

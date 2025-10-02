@@ -16,6 +16,7 @@ const summaryDialog = document.getElementById('summaryDialog');
 const summaryPrompt = document.getElementById('summaryPrompt');
 const summaryResponse = document.getElementById('summaryResponse');
 const closeSummaryDialog = document.getElementById('closeSummaryDialog');
+const togglePrompt = document.getElementById('togglePrompt');
 
 // ---------- Onglets ----------
 const tabButtons = document.querySelectorAll('.tab-button');
@@ -197,20 +198,28 @@ export async function openQuestWithSummary(id, container, allQuests) {
         const prompt = `${langLine}\n${lenLine}\nStyle: clair, narratif, sans bullet points. Pas de mécaniques de gameplay. Pas de spoiler futur.\n\nTitre de la quête: ${name} (ID ${id}).\nExtraits fournis (dialogues/journal):\n---\n${src}\n---\nRédige un résumé fidèle et concis.`;
         summaryPrompt.textContent = prompt;
         summaryResponse.textContent = '';
+        log('Modal résumé ouvert pour génération');
         summaryDialog.showModal();
+        // Initialiser le toggle du prompt
+        togglePrompt.textContent = 'Afficher';
+        togglePrompt.addEventListener('click', () => {
+          const isVisible = summaryPrompt.style.display !== 'none';
+          summaryPrompt.style.display = isVisible ? 'none' : 'block';
+          togglePrompt.textContent = isVisible ? 'Afficher' : 'Masquer';
+        });
         const txt = await generateSummary(settings, name, id, chunks, (chunk) => {
           summaryResponse.textContent += chunk;
         });
         out.style.display = 'block';
         out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
+        log('Génération réussie, modal reste ouvert pour afficher le résultat');
       } catch (e) {
         out.style.display = 'block';
         out.innerHTML = `<div style="color:#b91c1c;">Erreur: ${e.message}</div>`;
-        log('Erreur résumé: ' + e.message);
+        log('Erreur résumé: ' + e.message + ' - Modal reste ouvert pour afficher l\'erreur');
       } finally {
         btn.disabled = false;
         btn.textContent = 'Générer le résumé IA';
-        summaryDialog.close();
       }
     });
   } catch (e) {
