@@ -268,7 +268,11 @@ dialog label div {
   display: block;
 }
 
-/* Styles pour les labels du modal résumé IA */
+/* Styles pour les labels et contenu du modal résumé IA */
 #summaryDialog strong {
+  color: var(--text);
+}
+
+#summaryPrompt, #summaryResponse {
   color: var(--text);
 }
