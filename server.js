@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3000;
-const DEFAULT_OPENROUTER_KEY = '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';
+const DEFAULT_OPENROUTER_KEY = '';
 
 // Ouvrir la base de données LevelDB
 const db = new Level('./ff14msq-db', { valueEncoding: 'json' });
