@@ -70,29 +70,14 @@ function getSummaryKey(questId, settings) {
 }
 
 export async function getCachedSummary(questId, settings) {
-  const db = await openDB();
-  const transaction = db.transaction(['cache'], 'readonly');
-  const store = transaction.objectStore('cache');
   const key = getSummaryKey(questId, settings);
-  const request = store.get(key);
-
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => reject(request.error);
-  });
+  const summary = localStorage.getItem(key);
+  return summary || null;
 }
 
 export async function setCachedSummary(questId, settings, summary) {
-  const db = await openDB();
-  const transaction = db.transaction(['cache'], 'readwrite');
-  const store = transaction.objectStore('cache');
   const key = getSummaryKey(questId, settings);
-  const request = store.put(summary, key);
-
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  localStorage.setItem(key, summary);
 }
 
 export async function clearAllSummaries() {

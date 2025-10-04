@@ -225,7 +225,7 @@ export async function doSearch(searchTerm, currentFilters = {}) {
       const levelText = level !== '?' ? `Niv. ${level}` : 'Niveau inconnu';
       const locationText = region ? ` (${region})` : '';
 
-      div.innerHTML = `<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
+      div.innerHTML = `${qst.Icon ? `<img src="https://xivapi.com${qst.Icon}" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;" alt="Icône">` : ''}<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
       div.addEventListener('click', () => openQuestDetails(qst.ID, sortedQuests));
       resultsDiv.appendChild(div);
     }
@@ -292,7 +292,7 @@ async function loadMoreResults(searchTerm, filters, offset) {
       const levelText = level !== '?' ? `Niv. ${level}` : 'Niveau inconnu';
       const locationText = region ? ` (${region})` : '';
 
-      div.innerHTML = `<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
+      div.innerHTML = `${qst.Icon ? `<img src="https://xivapi.com${qst.Icon}" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;" alt="Icône">` : ''}<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
       div.addEventListener('click', () => openQuestDetails(qst.ID, result.quests || []));
       resultsDiv.appendChild(div);
     }
@@ -327,7 +327,7 @@ export async function openQuestDetails(id, allQuests = []) {
     questDetailContent.innerHTML = '<div class="loader" style="width:32px; height:32px; margin:20px auto;"></div><div style="text-align: center;">Chargement des détails...</div>';
 
     const detail = await fetchQuestFullDetail(id);
-    renderQuestDetails(detail);
+    await renderQuestDetails(detail);
 
     // Mettre à jour les boutons de navigation
     updateNavigationButtons(id, allQuests);
@@ -338,7 +338,7 @@ export async function openQuestDetails(id, allQuests = []) {
 }
 
 // ---------- Fonction pour rendre les détails de la quête ----------
-function renderQuestDetails(quest) {
+async function renderQuestDetails(quest) {
   const name = quest.Name || quest.Name_fr || quest.Name_en || '(Sans nom)';
   const level = quest.ClassJobLevel0 || '?';
   const issuer = quest.IssuerStart?.Name_en || quest.IssuerStart?.Name_fr || 'Inconnu';
@@ -347,7 +347,7 @@ function renderQuestDetails(quest) {
   const genre = quest.JournalGenre?.Name_en || 'Type inconnu';
 
   // Header
-  questDetailTitle.textContent = name;
+  questDetailTitle.innerHTML = `${quest.Icon ? `<img src="https://xivapi.com${quest.Icon}" style="width: 40px; height: 40px; margin-right: 12px; vertical-align: middle; border-radius: 4px;" alt="Icône de quête">` : ''}${name}`;
   questDetailMeta.innerHTML = `
     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
       <span class="badge badge-msq">${translateType(genre)}</span>
@@ -466,14 +466,6 @@ function renderQuestDetails(quest) {
     `;
   }
 
-  if (quest.Icon) {
-    content += `
-      <div class="quest-section">
-        <h3>🖼️ Icône</h3>
-        <img src="https://xivapi.com${quest.Icon}" style="width: 48px; height: 48px;" alt="Icône de la quête">
-      </div>
-    `;
-  }
 
   if (quest.ItemRewardType?.Name_en) {
     content += `
@@ -597,6 +589,17 @@ function renderQuestDetails(quest) {
 
   questDetailContent.innerHTML = content;
 
+  // Afficher automatiquement le résumé en cache s'il existe
+  const settings = getSettings();
+  console.log('Checking cache for quest', quest.ID, 'with settings', settings);
+  const cachedSummary = await getCachedSummary(quest.ID, settings);
+  console.log('Cached summary result:', cachedSummary);
+  if (cachedSummary) {
+    const summaryDiv = document.createElement('div');
+    summaryDiv.innerHTML = `<div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);"><strong>Résumé IA (depuis cache)</strong><br>${typeof cachedSummary === 'string' ? cachedSummary.replace(/\n/g, '<br>') : cachedSummary}</div>`;
+    document.getElementById('aiSummaryContainer').appendChild(summaryDiv);
+  }
+
   // Ajouter les event listeners pour les liens de quête
   document.querySelectorAll('.quest-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -623,6 +626,10 @@ function updateNavigationButtons(currentId, allQuests) {
   questDetailPrev.disabled = currentIndex <= 0;
   questDetailNext.disabled = currentIndex >= allQuests.length - 1;
 
+  // Simplifier les boutons à icônes seulement
+  questDetailPrev.innerHTML = '⬅️';
+  questDetailNext.innerHTML = '➡️';
+
   questDetailPrev.onclick = () => {
     if (currentIndex > 0) {
       openQuestDetails(allQuests[currentIndex - 1].ID, allQuests);
@@ -645,15 +652,28 @@ async function generateAISummaryForQuest(quest) {
     button.disabled = true;
     button.textContent = 'Génération en cours...';
 
+    const settings = getSettings();
+
+    // Vérifier d'abord le cache local
+    const cached = await getCachedSummary(quest.ID, settings);
+    if (cached) {
+      container.innerHTML = `<div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);"><strong>Résumé IA (depuis cache)</strong><br>${typeof cached === 'string' ? cached.replace(/\n/g, '<br>') : cached}</div>`;
+      button.textContent = 'Régénérer le résumé';
+      button.disabled = false;
+      return;
+    }
+
     container.innerHTML = '<div style="text-align: center;"><div class="loader" style="width:24px; height:24px; margin:10px auto;"></div>Génération du résumé...</div>';
 
-    const settings = getSettings();
     const chunks = extractTextChunks(quest);
     const name = quest.Name || quest.Name_fr || quest.Name_en || '(Sans nom)';
 
     const txt = await generateSummary(settings, name, quest.ID, chunks);
 
     container.innerHTML = `<div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);"><strong>Résumé IA :</strong><br>${typeof txt === 'string' ? txt.replace(/\n/g, '<br>') : txt}</div>`;
+
+    // Stocker en cache
+    await setCachedSummary(quest.ID, settings, txt);
 
     button.textContent = 'Régénérer le résumé';
   } catch (e) {
@@ -943,10 +963,16 @@ function populateFilterOptions() {
   initTypeFilter();
 }
 
+// Fonction pour normaliser le texte (enlever accents)
+function normalizeText(text) {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 // Fonction pour filtrer les options du select des types
 function initTypeFilter() {
   filterTypeSearch.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase().trim();
+    const searchTerm = e.target.value.trim();
+    const searchTermNormalized = normalizeText(searchTerm);
     const options = filterType.querySelectorAll('option');
 
     options.forEach(option => {
@@ -959,8 +985,11 @@ function initTypeFilter() {
       const originalText = option.getAttribute('data-original') || option.textContent;
       const translatedText = option.textContent;
 
-      const matches = originalText.toLowerCase().includes(searchTerm) ||
-                     translatedText.toLowerCase().includes(searchTerm);
+      const originalNormalized = normalizeText(originalText);
+      const translatedNormalized = normalizeText(translatedText);
+
+      const matches = originalNormalized.includes(searchTermNormalized) ||
+                      translatedNormalized.includes(searchTermNormalized);
 
       option.style.display = matches ? 'block' : 'none';
     });
@@ -1035,6 +1064,11 @@ function resetFilters() {
 export function initEvents(allQuests, datasetRef) {
   let debounceT = null;
 
+  // Initialiser les filtres comme collapsed
+  filtersPanel.style.display = 'block';
+  filtersPanel.classList.add('collapsed');
+  toggleFilters.innerHTML = '▶️ Afficher les filtres';
+
   btnSettings.addEventListener('click', () => {
     restoreSettingsUI();
     dlg.showModal();
@@ -1073,9 +1107,14 @@ export function initEvents(allQuests, datasetRef) {
 
   // Toggle filtres
   toggleFilters.addEventListener('click', () => {
-    const isVisible = filtersPanel.style.display !== 'none';
-    filtersPanel.style.display = isVisible ? 'none' : 'block';
-    toggleFilters.textContent = isVisible ? 'Filtres ▼' : 'Filtres ▲';
+    const isCollapsed = filtersPanel.classList.contains('collapsed');
+    if (isCollapsed) {
+      filtersPanel.classList.remove('collapsed');
+      toggleFilters.innerHTML = '🔽 Masquer les filtres';
+    } else {
+      filtersPanel.classList.add('collapsed');
+      toggleFilters.innerHTML = '▶️ Afficher les filtres';
+    }
   });
 
   // Bouton "Uniquement MSQ"
@@ -1090,6 +1129,9 @@ export function initEvents(allQuests, datasetRef) {
     } else {
       resultsDiv.innerHTML = '';
     }
+    // Masquer les filtres après application
+    filtersPanel.classList.add('collapsed');
+    toggleFilters.innerHTML = '▶️ Afficher les filtres';
   });
 
   // Réinitialiser les filtres
