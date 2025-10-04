@@ -70,11 +70,11 @@ app.get('/api/quests', async (req, res) => {
 // POST /api/quests/refresh - Forcer le rechargement des quêtes
 app.post('/api/quests/refresh', async (req, res) => {
   try {
-    console.log('Forçage du rechargement des quêtes...');
+    console.log('Forçage du rechargement des quêtes…');
     await clearQuestsCache();
+    await clearFilterMetadata(); // Vider aussi le cache des métadonnées
     const freshQuests = await loadQuestsFromAPI();
     await setCachedQuests(freshQuests);
-    await updateFilterMetadata(freshQuests);
     console.log(`Quêtes rechargées et stockées (${freshQuests.length} entrées)`);
     res.json({ message: 'Quêtes rechargées', count: freshQuests.length });
   } catch (error) {
@@ -93,6 +93,7 @@ app.get('/api/filters', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // POST /api/quests/filter - Filtrer les quêtes côté serveur
 app.post('/api/quests/filter', async (req, res) => {
@@ -114,12 +115,6 @@ app.post('/api/quests/filter', async (req, res) => {
         });
       }
 
-      if (filters.jobs && filters.jobs.length > 0) {
-        filtered = filtered.filter(q => {
-          const job = (q.ClassJobCategory?.Name_en || '').toLowerCase();
-          return filters.jobs.some(j => job.includes(j.toLowerCase()));
-        });
-      }
 
       if (filters.expansions && filters.expansions.length > 0) {
         filtered = filtered.filter(q => {
@@ -280,21 +275,16 @@ async function setCachedSummary(questId, settings, summary) {
 
 // ---------- Métadonnées des filtres ----------
 
+
 async function updateFilterMetadata(quests) {
   const types = [...new Set(quests.map(q => q.JournalGenre?.Name_en).filter(Boolean))].sort();
-  const jobs = [...new Set(quests.map(q => q.ClassJobCategory?.Name_en).filter(Boolean))].sort();
   const expansions = [...new Set(quests.map(q => q.Expansion?.Name_en).filter(Boolean))].sort();
   const regions = [...new Set(quests.map(q => q.PlaceName?.Name_en).filter(Boolean))].sort();
 
-  console.log(`Extraction métadonnées: ${types.length} types, ${jobs.length} jobs, ${expansions.length} expansions, ${regions.length} regions`);
-
-  // Debug: voir quelques exemples de jobs
-  const sampleJobs = quests.slice(0, 10).map(q => q.ClassJobCategory?.Name_en).filter(Boolean);
-  console.log('Exemples de jobs extraits:', sampleJobs);
+  console.log(`Extraction métadonnées: ${types.length} types, ${expansions.length} expansions, ${regions.length} regions`);
 
   const metadata = {
     types,
-    jobs,
     expansions,
     regions,
     levels: {
@@ -317,11 +307,21 @@ async function getFilterMetadata() {
   }
 }
 
+async function clearFilterMetadata() {
+  try {
+    await db.del('filter-metadata');
+    console.log('Cache des métadonnées des filtres vidé');
+  } catch (error) {
+    if (!error.notFound) throw error;
+  }
+}
+
 // ---------- Fonctions API externes (migrées depuis api.js) ----------
 
 const API_BASE = 'https://cafemaker.wakingsands.com';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const COLUMNS = encodeURIComponent('ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType');
+const COLUMNS = encodeURIComponent('ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,ClassJobCategory.Name_fr,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType,ClassJobLevel0Target,ClassJobLevel1Target');
+
 
 async function fetchQuestPage(page) {
   const url = `${API_BASE}/Quest?page=${page}&limit=3000&columns=${COLUMNS}&language=fr`;

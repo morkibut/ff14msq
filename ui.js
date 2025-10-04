@@ -27,7 +27,6 @@ const globalLoader = document.getElementById('globalLoader');
 const toggleFilters = document.getElementById('toggleFilters');
 const filtersPanel = document.getElementById('filtersPanel');
 const filterType = document.getElementById('filterType');
-const filterJob = document.getElementById('filterJob');
 const filterExpansion = document.getElementById('filterExpansion');
 const filterRegion = document.getElementById('filterRegion');
 const minLevel = document.getElementById('minLevel');
@@ -178,7 +177,10 @@ export async function doSearch(searchTerm, currentFilters = {}) {
       const level = qst.ClassJobLevel0 ?? '?';
       const expansion = qst.Expansion?.Name_en || '';
       const region = qst.PlaceName?.Name_en || '';
-      const job = qst.ClassJobCategory?.Name_en || '';
+      const job = qst.ClassJobCategory?.Name_en ||
+                  qst.ClassJobCategory?.Name_fr ||
+                  qst.ClassJobLevel0Target ||
+                  qst.ClassJobLevel1Target || '';
 
       // Construire les badges de manière plus robuste
       let badges = '';
@@ -235,7 +237,10 @@ async function loadMoreResults(searchTerm, filters, offset) {
       const level = qst.ClassJobLevel0 ?? '?';
       const expansion = qst.Expansion?.Name_en || '';
       const region = qst.PlaceName?.Name_en || '';
-      const job = qst.ClassJobCategory?.Name_en || '';
+      const job = qst.ClassJobCategory?.Name_en ||
+                  qst.ClassJobCategory?.Name_fr ||
+                  qst.ClassJobLevel0Target ||
+                  qst.ClassJobLevel1Target || '';
 
       // Construire les badges de manière plus robuste
       let badges = '';
@@ -351,31 +356,71 @@ export async function loadFilterMetadata() {
 function populateFilterOptions() {
   if (!filterMetadata) return;
 
-  // Types de quête
-  filterType.innerHTML = '<option value="">Tous les types</option>';
-  // Ajouter MSQ en premier
-  const msqOption = document.createElement('option');
-  msqOption.value = 'main scenario';
-  msqOption.textContent = 'Main Scenario Quest (MSQ)';
-  filterType.appendChild(msqOption);
+  // Types de quête - organisation par catégories
+  filterType.innerHTML = '';
 
-  filterMetadata.types.forEach(type => {
-    // Éviter de dupliquer MSQ
-    if (!type.toLowerCase().includes('main scenario')) {
+  // Créer les groupes optgroup dynamiquement
+  const createOptGroup = (label, emoji) => {
+    const group = document.createElement('optgroup');
+    group.label = `${emoji} ${label}`;
+    filterType.appendChild(group);
+    return group;
+  };
+
+  const msqGroup = createOptGroup('Histoire principale', '📖');
+  const classGroup = createOptGroup('Classes & Jobs', '⚔️');
+  const craftGroup = createOptGroup('Artisanat', '🔨');
+  const gatherGroup = createOptGroup('Récolte', '🌾');
+
+  // Option "Tous les types" en premier
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = 'Tous les types';
+  filterType.insertBefore(allOption, filterType.firstChild);
+
+  // Trier et organiser les types
+  const sortedTypes = filterMetadata.types.sort();
+
+  sortedTypes.forEach(type => {
+    const typeLower = type.toLowerCase();
+
+    if (typeLower.includes('main scenario')) {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      msqGroup.appendChild(option);
+    } else if (typeLower.includes('mage') || typeLower.includes('knight') || typeLower.includes('monk') ||
+               typeLower.includes('bard') || typeLower.includes('dragoon') || typeLower.includes('ninja') ||
+               typeLower.includes('samurai') || typeLower.includes('reaper') || typeLower.includes('viper') ||
+               typeLower.includes('machinist') || typeLower.includes('dancer') || typeLower.includes('gunbreaker') ||
+               typeLower.includes('paladin') || typeLower.includes('warrior') || typeLower.includes('dark knight') ||
+               typeLower.includes('white mage') || typeLower.includes('black mage') || typeLower.includes('summoner') ||
+               typeLower.includes('scholar') || typeLower.includes('astrologian') || typeLower.includes('sage') ||
+               typeLower.includes('red mage') || typeLower.includes('blue mage') || typeLower.includes('pictomancer') ||
+               typeLower.includes('role quests')) {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      classGroup.appendChild(option);
+    } else if (typeLower.includes('smith') || typeLower.includes('armor') || typeLower.includes('goldsmith') ||
+               typeLower.includes('leatherworker') || typeLower.includes('weaver') || typeLower.includes('alchemist') ||
+               typeLower.includes('carpenter') || typeLower.includes('blacksmith') || typeLower.includes('culinarian')) {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      craftGroup.appendChild(option);
+    } else if (typeLower.includes('miner') || typeLower.includes('botanist') || typeLower.includes('fisher')) {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      gatherGroup.appendChild(option);
+    } else {
+      // Autres types non catégorisés - ajouter directement au select
       const option = document.createElement('option');
       option.value = type;
       option.textContent = type;
       filterType.appendChild(option);
     }
-  });
-
-  // Métiers
-  filterJob.innerHTML = '<option value="">Tous les métiers</option>';
-  filterMetadata.jobs.forEach(job => {
-    const option = document.createElement('option');
-    option.value = job;
-    option.textContent = job;
-    filterJob.appendChild(option);
   });
 
   // Expansions
@@ -410,9 +455,6 @@ function getSelectedFilters() {
   const selectedTypes = Array.from(filterType.selectedOptions).map(opt => opt.value).filter(v => v);
   if (selectedTypes.length > 0) filters.types = selectedTypes;
 
-  const selectedJobs = Array.from(filterJob.selectedOptions).map(opt => opt.value).filter(v => v);
-  if (selectedJobs.length > 0) filters.jobs = selectedJobs;
-
   const selectedExpansions = Array.from(filterExpansion.selectedOptions).map(opt => opt.value).filter(v => v);
   if (selectedExpansions.length > 0) filters.expansions = selectedExpansions;
 
@@ -430,7 +472,6 @@ function getSelectedFilters() {
 
 function resetFilters() {
   filterType.selectedIndex = 0;
-  filterJob.selectedIndex = 0;
   filterExpansion.selectedIndex = 0;
   filterRegion.selectedIndex = 0;
   minLevel.value = '';
@@ -474,6 +515,7 @@ export function initEvents(allQuests, datasetRef) {
       alert('Erreur test: ' + e.message);
     }
   });
+
 
   btnRefreshModels.addEventListener('click', refreshModels);
 
