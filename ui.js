@@ -1,4 +1,6 @@
-// Module UI pour gérer l'interface utilisateur
+/*  */// Module UI pour gérer l'interface utilisateur
+
+import { getCachedSummary, setCachedSummary } from './storage.js';
 
 // ---------- Sélecteurs ----------
 const input = document.getElementById('searchInput');
@@ -10,6 +12,7 @@ const onlyMsq = document.getElementById('onlyMsq');
 const btnSettings = document.getElementById('btnSettings');
 const btnTest = document.getElementById('btnTest');
 const btnRefreshModels = document.getElementById('btnRefreshModels');
+const btnReloadCache = document.getElementById('btnReloadCache');
 const dlg = document.getElementById('settingsDialog');
 const orModelSelect = document.getElementById('orModel');
 const summaryDialog = document.getElementById('summaryDialog');
@@ -63,7 +66,7 @@ const DEFAULT_API_KEY = 'sk-or-v1-e21420425d7ffd7dd2ea9a3da00609a6e9c5cefd178603
 export function getSettings() {
   return {
     key: localStorage.getItem('orKey') || DEFAULT_API_KEY,
-    model: localStorage.getItem('orModel') || 'meta-llama/llama-3.1-8b-instruct:free',
+    model: localStorage.getItem('orModel') || 'deepseek/deepseek-chat-v3.1:free',
     fr: localStorage.getItem('sumFR') !== '0',
     short: localStorage.getItem('sumShort') !== '0',
   };
@@ -120,6 +123,7 @@ export async function refreshModels() {
       { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B IT (gratuit)' },
       { id: 'mistralai/mixtral-8x7b-instruct:free', name: 'Mixtral 8x7B Instruct (gratuit)' },
       { id: 'qwen/qwen2.5-7b-instruct:free', name: 'Qwen2.5 7B Instruct (gratuit)' },
+      { id: 'deepseek/deepseek-chat-v3.1:free', name: 'DeepSeek Chat v3.1 (gratuit)' },
       { id: 'openrouter/auto', name: 'OpenRouter Auto' }
     ]);
     alert('Erreur lors de l\'actualisation. Modèles par défaut utilisés.');
@@ -161,7 +165,8 @@ export function rebuildDataset(allQuests, onlyMsqChecked) {
 }
 
 // ---------- Ouverture d’une quête & Génération du résumé ----------
-import { fetchQuestDetail, extractTextChunks, generateSummary, fetchOpenRouterModels, filterFreeModels } from './api.js';
+import { extractTextChunks, generateSummary, loadAllQuests, fetchOpenRouterModels, filterFreeModels, fetchQuestDetail } from './api.js';
+import { clearQuestsCache } from './storage.js';
 
 export async function openQuestWithSummary(id, container, allQuests) {
   try {
@@ -185,13 +190,24 @@ export async function openQuestWithSummary(id, container, allQuests) {
     const btn = document.getElementById(`btnGen-${id}`);
     const out = document.getElementById(`sum-${id}`);
     closeSummaryDialog.addEventListener('click', () => summaryDialog.close());
-    btn.addEventListener('click', async () => {
+
+    // Fonction pour afficher un résumé existant
+    const showExistingSummary = (summary) => {
+      out.style.display = 'block';
+      out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA (depuis cache)</div><div>${summary.replace(/\n/g, '<br>')}</div>`;
+      log('Résumé chargé depuis le cache local.');
+    };
+
+    // Fonction pour générer un nouveau résumé
+    const generateNewSummary = async () => {
       try {
         btn.disabled = true;
         btn.textContent = 'Génération en cours…';
         const chunks = extractTextChunks(detail);
         if (!chunks.length) throw new Error('Aucun texte exploitable (TextData vide).');
         const settings = getSettings();
+        console.log('[DEBUG] Settings retrieved in UI:', { keyPresent: !!settings.key, model: settings.model, fr: settings.fr, short: settings.short });
+
         const langLine = settings.fr ? 'Rédige en FRANÇAIS.' : 'Write in ENGLISH.';
         const lenLine = settings.short ? 'Longueur: 2 à 3 phrases, max 70 mots.' : 'Longueur: 3 à 5 phrases, max 120 mots.';
         const src = chunks.filter(Boolean).join('\n').slice(0, 6000);
@@ -210,9 +226,16 @@ export async function openQuestWithSummary(id, container, allQuests) {
         const txt = await generateSummary(settings, name, id, chunks, (chunk) => {
           summaryResponse.textContent += chunk;
         });
+
+        // Stocker en cache
+        await setCachedSummary(id, settings, txt);
+
         out.style.display = 'block';
         out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
-        log('Génération réussie, modal reste ouvert pour afficher le résultat');
+        log('Génération réussie et stockée en cache, modal reste ouvert pour afficher le résultat');
+
+        // Changer le bouton pour "Voir résumé" maintenant qu'il existe
+        updateButtonToViewMode(txt);
       } catch (e) {
         out.style.display = 'block';
         out.innerHTML = `<div style="color:#b91c1c;">Erreur: ${e.message}</div>`;
@@ -221,7 +244,32 @@ export async function openQuestWithSummary(id, container, allQuests) {
         btn.disabled = false;
         btn.textContent = 'Générer le résumé IA';
       }
-    });
+    };
+
+    // Fonction pour mettre à jour le bouton vers le mode "Voir"
+    const updateButtonToViewMode = (summary) => {
+      btn.textContent = 'Voir résumé';
+      btn.className = 'btn secondary';
+      btn.onclick = () => showExistingSummary(summary);
+    };
+
+    // Initialisation : vérifier si un résumé existe déjà
+    const initButton = async () => {
+      const settings = getSettings();
+      const cachedSummary = await getCachedSummary(id, settings);
+      if (cachedSummary) {
+        updateButtonToViewMode(cachedSummary);
+        // Afficher aussi le résumé directement
+        showExistingSummary(cachedSummary);
+      } else {
+        btn.textContent = 'Générer le résumé IA';
+        btn.className = 'btn primary';
+        btn.onclick = generateNewSummary;
+      }
+    };
+
+    // Initialiser le bouton
+    initButton();
   } catch (e) {
     log('Erreur détail: ' + e.message);
   }
@@ -265,6 +313,32 @@ export function initEvents(allQuests, datasetRef) {
   });
 
   btnRefreshModels.addEventListener('click', refreshModels);
+
+  btnReloadCache.addEventListener('click', async () => {
+    if (confirm('Forcer le rechargement des quêtes depuis l\'API ? Cela effacera le cache local.')) {
+      try {
+        btnReloadCache.disabled = true;
+        btnReloadCache.textContent = 'Rechargement…';
+        log('Forçage du rechargement des quêtes…');
+        await clearQuestsCache();
+        const quests = await loadAllQuests(
+          (progress, label) => setProgress(progress, label),
+          (msg) => log(msg),
+          true // forceReload
+        );
+        // Mettre à jour le dataset global (nécessite accès à allQuests et datasetRef)
+        // Note: Cette logique pourrait être améliorée en passant des callbacks
+        log('Rechargement terminé. Actualisez la page pour appliquer les changements.');
+        alert('Rechargement terminé ! Actualisez la page pour voir les nouvelles quêtes.');
+      } catch (e) {
+        log('Erreur rechargement: ' + e.message);
+        alert('Erreur lors du rechargement: ' + e.message);
+      } finally {
+        btnReloadCache.disabled = false;
+        btnReloadCache.textContent = 'Forcer rechargement';
+      }
+    }
+  });
 
   onlyMsq.addEventListener('change', () => {
     datasetRef.current = rebuildDataset(allQuests, onlyMsq.checked);
