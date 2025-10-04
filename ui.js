@@ -20,6 +20,7 @@ const summaryPrompt = document.getElementById('summaryPrompt');
 const summaryResponse = document.getElementById('summaryResponse');
 const closeSummaryDialog = document.getElementById('closeSummaryDialog');
 const togglePrompt = document.getElementById('togglePrompt');
+const globalLoader = document.getElementById('globalLoader');
 
 // ---------- Onglets ----------
 const tabButtons = document.querySelectorAll('.tab-button');
@@ -169,107 +170,58 @@ import { extractTextChunks, generateSummary, loadAllQuests, fetchOpenRouterModel
 import { clearQuestsCache } from './storage.js';
 
 export async function openQuestWithSummary(id, container, allQuests) {
+  // Vérifier si un résumé est déjà affiché ou en cours
+  const existingSummary = container.querySelector('.quest-summary');
+  if (existingSummary) {
+    // Si déjà affiché, le masquer
+    existingSummary.remove();
+    return;
+  }
+
   try {
     const detail = await fetchQuestDetail(id);
     const name = detail.Name || detail.Name_fr || detail.Name_en || '(Sans nom)';
-    const wrap = document.createElement('div');
-    wrap.className = 'details';
-    wrap.innerHTML = `
-      <h3>${name}</h3>
-      <p><strong>ID:</strong> ${detail.ID} · <strong>Niv. req.:</strong> ${detail.ClassJobLevel0 ?? 'N/A'}</p>
-      <div class="row" style="gap:8px; margin:6px 0;">
-        <button class="btn primary" id="btnGen-${id}">Générer le résumé IA</button>
-        <span class="muted">(utilise ta clé OpenRouter)</span>
-      </div>
-      <div id="sum-${id}" style="border:1px dashed #94a3b8; border-radius:8px; padding:10px; background:#f8fafc; display:none;"></div>
-    `;
-    const old = container.querySelector('.details');
-    if (old) old.remove();
-    container.appendChild(wrap);
+    const settings = getSettings();
+    const cachedSummary = await getCachedSummary(id, settings);
 
-    const btn = document.getElementById(`btnGen-${id}`);
-    const out = document.getElementById(`sum-${id}`);
-    closeSummaryDialog.addEventListener('click', () => summaryDialog.close());
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'quest-summary';
 
-    // Fonction pour afficher un résumé existant
-    const showExistingSummary = (summary) => {
-      out.style.display = 'block';
-      out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA (depuis cache)</div><div>${summary.replace(/\n/g, '<br>')}</div>`;
+    if (cachedSummary) {
+      // Afficher le résumé en cache immédiatement
+      summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA (depuis cache)</div><div>${cachedSummary.replace(/\n/g, '<br>')}</div>`;
       log('Résumé chargé depuis le cache local.');
-    };
-
-    // Fonction pour générer un nouveau résumé
-    const generateNewSummary = async () => {
+    } else {
+      // Générer un nouveau résumé
+      summaryDiv.innerHTML = '<div style="font-weight:600;">Préparation de la génération…</div>';
       try {
-        btn.disabled = true;
-        btn.textContent = 'Génération en cours…';
         const chunks = extractTextChunks(detail);
         if (!chunks.length) throw new Error('Aucun texte exploitable (TextData vide).');
-        const settings = getSettings();
-        console.log('[DEBUG] Settings retrieved in UI:', { keyPresent: !!settings.key, model: settings.model, fr: settings.fr, short: settings.short });
 
         const langLine = settings.fr ? 'Rédige en FRANÇAIS.' : 'Write in ENGLISH.';
         const lenLine = settings.short ? 'Longueur: 2 à 3 phrases, max 70 mots.' : 'Longueur: 3 à 5 phrases, max 120 mots.';
         const src = chunks.filter(Boolean).join('\n').slice(0, 6000);
         const prompt = `${langLine}\n${lenLine}\nStyle: clair, narratif, sans bullet points. Pas de mécaniques de gameplay. Pas de spoiler futur.\n\nTitre de la quête: ${name} (ID ${id}).\nExtraits fournis (dialogues/journal):\n---\n${src}\n---\nRédige un résumé fidèle et concis.`;
-        summaryPrompt.textContent = prompt;
-        summaryResponse.textContent = '';
-        log('Modal résumé ouvert pour génération');
-        summaryDialog.showModal();
-        // Initialiser le toggle du prompt
-        togglePrompt.textContent = 'Afficher';
-        togglePrompt.addEventListener('click', () => {
-          const isVisible = summaryPrompt.style.display !== 'none';
-          summaryPrompt.style.display = isVisible ? 'none' : 'block';
-          togglePrompt.textContent = isVisible ? 'Afficher' : 'Masquer';
-        });
+
+        globalLoader.classList.remove('hidden');
         const txt = await generateSummary(settings, name, id, chunks, (chunk) => {
-          summaryResponse.textContent += chunk;
+          // Pas de streaming visible, juste attendre la fin
         });
+        globalLoader.classList.add('hidden');
 
         // Stocker en cache
         await setCachedSummary(id, settings, txt);
 
-        out.style.display = 'block';
-        out.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
-        log('Génération réussie et stockée en cache, modal reste ouvert pour afficher le résultat');
-
-        // Changer le bouton pour "Voir résumé" maintenant qu'il existe
-        updateButtonToViewMode(txt);
+        summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
+        log('Génération réussie et stockée en cache.');
       } catch (e) {
-        out.style.display = 'block';
-        out.innerHTML = `<div style="color:#b91c1c;">Erreur: ${e.message}</div>`;
-        log('Erreur résumé: ' + e.message + ' - Modal reste ouvert pour afficher l\'erreur');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Générer le résumé IA';
+        globalLoader.classList.add('hidden');
+        summaryDiv.innerHTML = `<div style="color:#b91c1c;">Erreur: ${e.message}</div>`;
+        log('Erreur résumé: ' + e.message);
       }
-    };
+    }
 
-    // Fonction pour mettre à jour le bouton vers le mode "Voir"
-    const updateButtonToViewMode = (summary) => {
-      btn.textContent = 'Voir résumé';
-      btn.className = 'btn secondary';
-      btn.onclick = () => showExistingSummary(summary);
-    };
-
-    // Initialisation : vérifier si un résumé existe déjà
-    const initButton = async () => {
-      const settings = getSettings();
-      const cachedSummary = await getCachedSummary(id, settings);
-      if (cachedSummary) {
-        updateButtonToViewMode(cachedSummary);
-        // Afficher aussi le résumé directement
-        showExistingSummary(cachedSummary);
-      } else {
-        btn.textContent = 'Générer le résumé IA';
-        btn.className = 'btn primary';
-        btn.onclick = generateNewSummary;
-      }
-    };
-
-    // Initialiser le bouton
-    initButton();
+    container.appendChild(summaryDiv);
   } catch (e) {
     log('Erreur détail: ' + e.message);
   }
