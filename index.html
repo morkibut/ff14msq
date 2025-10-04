@@ -25,8 +25,56 @@
     <div class="card">
       <div class="controls">
         <input id="searchInput" type="text" placeholder="Tape un mot du nom de la quête (FR/EN)" disabled>
-        <label class="checkbox"><input type="checkbox" id="onlyMsq" checked> MSQ uniquement</label>
+        <button class="btn" id="toggleFilters">Filtres ▼</button>
       </div>
+
+      <!-- Panneau de filtres -->
+      <div id="filtersPanel" class="filters-panel" style="display: none;">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Type de quête</label>
+            <select id="filterType" multiple size="3">
+              <option value="">Tous les types</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Métier</label>
+            <select id="filterJob" multiple size="3">
+              <option value="">Tous les métiers</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Expansion</label>
+            <select id="filterExpansion" multiple size="3">
+              <option value="">Toutes les expansions</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Région</label>
+            <select id="filterRegion" multiple size="3">
+              <option value="">Toutes les régions</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Niveau</label>
+            <div class="level-range">
+              <input type="number" id="minLevel" placeholder="Min" min="1" max="100">
+              <span>à</span>
+              <input type="number" id="maxLevel" placeholder="Max" min="1" max="100">
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="btn" id="applyFilters">Appliquer</button>
+          <button class="btn" id="resetFilters">Réinitialiser</button>
+        </div>
+      </div>
+
       <div class="status" id="status">Chargement des quêtes…</div>
       <div class="progress"><div id="bar"></div></div>
       <div id="results" class="results"></div>

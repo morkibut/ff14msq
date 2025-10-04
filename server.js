@@ -47,6 +47,11 @@ app.get('/api/quests', async (req, res) => {
     const quests = await getCachedQuests();
     if (quests) {
       console.log(`Quêtes servies depuis cache LevelDB (${quests.length} entrées)`);
+      // Vérifier si les métadonnées existent, sinon les créer
+      const metadata = await getFilterMetadata();
+      if (!metadata) {
+        await updateFilterMetadata(quests);
+      }
       return res.json(quests);
     }
 
@@ -69,10 +74,98 @@ app.post('/api/quests/refresh', async (req, res) => {
     await clearQuestsCache();
     const freshQuests = await loadQuestsFromAPI();
     await setCachedQuests(freshQuests);
+    await updateFilterMetadata(freshQuests);
     console.log(`Quêtes rechargées et stockées (${freshQuests.length} entrées)`);
     res.json({ message: 'Quêtes rechargées', count: freshQuests.length });
   } catch (error) {
     console.error('Erreur POST /api/quests/refresh:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/filters - Récupérer les métadonnées des filtres
+app.get('/api/filters', async (req, res) => {
+  try {
+    const metadata = await getFilterMetadata();
+    res.json(metadata);
+  } catch (error) {
+    console.error('Erreur GET /api/filters:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/quests/filter - Filtrer les quêtes côté serveur
+app.post('/api/quests/filter', async (req, res) => {
+  try {
+    const { filters, searchTerm, limit = 50, offset = 0 } = req.body;
+    const quests = await getCachedQuests();
+    if (!quests) {
+      return res.status(404).json({ error: 'Aucune quête en cache' });
+    }
+
+    let filtered = quests;
+
+    // Appliquer les filtres
+    if (filters) {
+      if (filters.types && filters.types.length > 0) {
+        filtered = filtered.filter(q => {
+          const genre = (q.JournalGenre?.Name_en || '').toLowerCase();
+          return filters.types.some(type => genre.includes(type.toLowerCase()));
+        });
+      }
+
+      if (filters.jobs && filters.jobs.length > 0) {
+        filtered = filtered.filter(q => {
+          const job = (q.ClassJobCategory?.Name_en || '').toLowerCase();
+          return filters.jobs.some(j => job.includes(j.toLowerCase()));
+        });
+      }
+
+      if (filters.expansions && filters.expansions.length > 0) {
+        filtered = filtered.filter(q => {
+          const exp = (q.Expansion?.Name_en || '');
+          return filters.expansions.includes(exp);
+        });
+      }
+
+      if (filters.regions && filters.regions.length > 0) {
+        filtered = filtered.filter(q => {
+          const region = (q.PlaceName?.Name_en || '');
+          return filters.regions.includes(region);
+        });
+      }
+
+      if (filters.minLevel !== undefined) {
+        filtered = filtered.filter(q => (q.ClassJobLevel0 || 0) >= filters.minLevel);
+      }
+
+      if (filters.maxLevel !== undefined) {
+        filtered = filtered.filter(q => (q.ClassJobLevel0 || 0) <= filters.maxLevel);
+      }
+    }
+
+    // Appliquer la recherche textuelle
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(q => {
+        const name = (q.Name || '').toLowerCase();
+        const nameFr = (q.Name_fr || '').toLowerCase();
+        const nameEn = (q.Name_en || '').toLowerCase();
+        return name.includes(term) || nameFr.includes(term) || nameEn.includes(term);
+      });
+    }
+
+    // Pagination
+    const total = filtered.length;
+    const paginated = filtered.slice(offset, offset + limit);
+
+    res.json({
+      quests: paginated,
+      total,
+      hasMore: offset + limit < total
+    });
+  } catch (error) {
+    console.error('Erreur POST /api/quests/filter:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -185,11 +278,50 @@ async function setCachedSummary(questId, settings, summary) {
   await db.put(key, summary);
 }
 
+// ---------- Métadonnées des filtres ----------
+
+async function updateFilterMetadata(quests) {
+  const types = [...new Set(quests.map(q => q.JournalGenre?.Name_en).filter(Boolean))].sort();
+  const jobs = [...new Set(quests.map(q => q.ClassJobCategory?.Name_en).filter(Boolean))].sort();
+  const expansions = [...new Set(quests.map(q => q.Expansion?.Name_en).filter(Boolean))].sort();
+  const regions = [...new Set(quests.map(q => q.PlaceName?.Name_en).filter(Boolean))].sort();
+
+  console.log(`Extraction métadonnées: ${types.length} types, ${jobs.length} jobs, ${expansions.length} expansions, ${regions.length} regions`);
+
+  // Debug: voir quelques exemples de jobs
+  const sampleJobs = quests.slice(0, 10).map(q => q.ClassJobCategory?.Name_en).filter(Boolean);
+  console.log('Exemples de jobs extraits:', sampleJobs);
+
+  const metadata = {
+    types,
+    jobs,
+    expansions,
+    regions,
+    levels: {
+      min: Math.min(...quests.map(q => q.ClassJobLevel0 || 0).filter(l => l > 0)),
+      max: Math.max(...quests.map(q => q.ClassJobLevel0 || 0))
+    },
+    lastUpdated: new Date().toISOString()
+  };
+
+  await db.put('filter-metadata', metadata);
+  console.log('Métadonnées des filtres mises à jour');
+}
+
+async function getFilterMetadata() {
+  try {
+    return await db.get('filter-metadata');
+  } catch (error) {
+    if (error.notFound) return null;
+    throw error;
+  }
+}
+
 // ---------- Fonctions API externes (migrées depuis api.js) ----------
 
 const API_BASE = 'https://cafemaker.wakingsands.com';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const COLUMNS = encodeURIComponent('ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0');
+const COLUMNS = encodeURIComponent('ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType');
 
 async function fetchQuestPage(page) {
   const url = `${API_BASE}/Quest?page=${page}&limit=3000&columns=${COLUMNS}&language=fr`;
@@ -204,10 +336,20 @@ async function loadQuestsFromAPI() {
   const totalPages = first.Pagination?.PageTotal || 1;
   let allQuests = [...(first.Results || [])];
 
+  console.log(`Récupération des quêtes: ${first.Pagination?.PageTotal} pages, ${first.Pagination?.ResultsTotal} quêtes au total`);
+  console.log(`Page 1: ${first.Results?.length || 0} quêtes`);
+
   for (let p = 2; p <= totalPages; p++) {
     const data = await fetchQuestPage(p);
+    const count = data.Results?.length || 0;
+    console.log(`Page ${p}: ${count} quêtes`);
     allQuests.push(...(data.Results || []));
   }
+
+  console.log(`Total récupéré: ${allQuests.length} quêtes`);
+
+  // Mettre à jour les métadonnées des filtres
+  await updateFilterMetadata(allQuests);
 
   return allQuests;
 }

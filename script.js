@@ -1,17 +1,13 @@
 // Script principal pour l'app FF14 MSQ
 
 import { loadAllQuests, fetchOpenRouterModels, filterFreeModels } from './api.js';
-import { initTabs, log, setProgress, getSettings, updateModelSelect, rebuildDataset, doSearch, initEvents } from './ui.js';
+import { initTabs, log, setProgress, getSettings, updateModelSelect, doSearch, initEvents, loadFilterMetadata } from './ui.js';
 
 // ---------- État global ----------
-let allQuests = [];
-let dataset = [];
-let loadedPages = 0;
-let totalPages = 0;
 let loading = true;
 
-// Référence pour dataset
-const datasetRef = { current: dataset, loading, loadedPages, totalPages };
+// Référence pour dataset (simplifié pour compatibilité)
+const datasetRef = { loading };
 
 // ---------- Chargement initial ----------
 async function init() {
@@ -39,17 +35,19 @@ async function init() {
     }
 
     // Charger les quêtes
-    allQuests = await loadAllQuests(
+    await loadAllQuests(
       (progress, label) => setProgress(progress, label),
       (msg) => log(msg)
     );
-    dataset = rebuildDataset(allQuests, document.getElementById('onlyMsq').checked);
-    datasetRef.current = dataset;
+
+    // Charger les métadonnées des filtres
+    await loadFilterMetadata();
+
     loading = false;
     datasetRef.loading = false;
     document.getElementById('searchInput').disabled = false;
     setProgress(100);
-    log(`Prêt. ${dataset.length} entrées dans l’index`);
+    log('Prêt. Utilisez les filtres pour rechercher des quêtes.');
   } catch (e) {
     loading = false;
     datasetRef.loading = false;
@@ -60,6 +58,6 @@ async function init() {
 // ---------- Lancement ----------
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
-  initEvents(allQuests, datasetRef);
+  initEvents([], datasetRef); // Plus besoin d'allQuests car on utilise l'API
   init();
 });

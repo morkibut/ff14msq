@@ -205,6 +205,16 @@ input[disabled] {
   background: #8b4513; /* Marron pour Beast Tribe */
 }
 
+.badge-expansion {
+  background: #17a2b8; /* Cyan pour expansions */
+  color: white;
+}
+
+.badge-job {
+  background: #ffc107; /* Jaune pour jobs */
+  color: black;
+}
+
 .details {
   margin-top: 12px;
   padding: 12px;
@@ -331,4 +341,64 @@ dialog label div {
 
 #summaryPrompt {
   display: none;
+}
+
+/* Filtres */
+.filters-panel {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.filter-group select {
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.level-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-range input {
+  width: 60px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }

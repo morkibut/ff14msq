@@ -115,3 +115,36 @@ export function extractTextChunks(detail) {
   if (detail?.Introduction) chunks.push('Intro: ' + detail.Introduction);
   return chunks;
 }
+
+// ---------- Métadonnées des filtres ----------
+export async function fetchFilterMetadata() {
+  const url = `${SERVER_BASE}/filters`;
+  console.log('GET ' + url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ---------- Filtrage côté serveur ----------
+export async function filterQuests(filters, searchTerm, limit = 50, offset = 0) {
+  const url = `${SERVER_BASE}/quests/filter`;
+  console.log('POST ' + url);
+
+  const body = {
+    filters,
+    searchTerm,
+    limit,
+    offset
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
