@@ -184,6 +184,27 @@ input[disabled] {
   font-weight: bold;
 }
 
+.badge-msq {
+  background: #ffd700; /* Or pour MSQ */
+  color: #000; /* Texte noir pour contraste */
+}
+
+.badge-side {
+  background: #1976d2; /* Bleu pour Side Quests */
+}
+
+.badge-class {
+  background: #28a745; /* Vert pour Class Quests */
+}
+
+.badge-role {
+  background: #6f42c1; /* Violet pour Role Quests */
+}
+
+.badge-beast {
+  background: #8b4513; /* Marron pour Beast Tribe */
+}
+
 .details {
   margin-top: 12px;
   padding: 12px;

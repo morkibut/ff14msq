@@ -135,6 +135,16 @@ export async function refreshModels() {
 }
 
 // ---------- Recherche ----------
+function getBadgeClass(genre) {
+  const g = genre.toLowerCase();
+  if (g.includes('main scenario')) return 'badge badge-msq';
+  if (g.includes('side')) return 'badge badge-side';
+  if (g.includes('class')) return 'badge badge-class';
+  if (g.includes('role')) return 'badge badge-role';
+  if (g.includes('beast tribe') || g.includes('tribal')) return 'badge badge-beast';
+  return 'badge';
+}
+
 export function doSearch(allQuests, dataset, term) {
   const q = term.toLowerCase();
   log('Recherche: ' + q);
@@ -151,7 +161,9 @@ export function doSearch(allQuests, dataset, term) {
     div.className = 'result';
     const title = qst.Name || qst.Name_fr || qst.Name_en || '(Sans nom)';
     const genre = qst.JournalGenre?.Name_en || '';
-    div.innerHTML = `<strong>${title}</strong> <span class="badge">${genre}</span><br><small>ID: ${qst.ID} · Niv. ${qst.ClassJobLevel0 ?? 'N/A'}</small>`;
+    const level = qst.ClassJobLevel0 ?? 'N/A';
+    const id = qst.ID;
+    div.innerHTML = `<strong>${title}</strong> <span class="${getBadgeClass(genre)}">${genre}</span><br><strong>Niv. ${level}</strong> <small style="font-size: 10px;">ID: ${id}</small>`;
     div.addEventListener('click', () => openQuestWithSummary(qst.ID, div, allQuests));
     resultsDiv.appendChild(div);
   }
