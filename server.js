@@ -316,15 +316,15 @@ async function clearFilterMetadata() {
   }
 }
 
-// ---------- Fonctions API externes (migrées depuis api.js) ----------
+// ---------- Fonctions API externes (migrées vers XIVAPI v2) ----------
 
-const API_BASE = 'https://cafemaker.wakingsands.com';
+const API_BASE = 'https://xivapi.com';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const COLUMNS = encodeURIComponent('ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,ClassJobCategory.Name_fr,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType,ClassJobLevel0Target,ClassJobLevel1Target');
+const COLUMNS = 'ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,ClassJobCategory.Name_fr,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType,ClassJobLevel0Target,ClassJobLevel1Target';
 
 
 async function fetchQuestPage(page) {
-  const url = `${API_BASE}/Quest?page=${page}&limit=3000&columns=${COLUMNS}&language=fr`;
+  const url = `${API_BASE}/quest?page=${page}&limit=3000&columns=${COLUMNS}&language=fr`;
   console.log('GET ' + url);
   const res = await fetch(url);
   if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -363,8 +363,7 @@ async function getQuestDetail(questId) {
   }
 
   // Sinon récupérer depuis l'API externe
-  const API_BASE = 'https://cafemaker.wakingsands.com';
-  const url = `${API_BASE}/Quest/${questId}?language=fr`;
+  const url = `${API_BASE}/quest/${questId}?language=fr&columns=${COLUMNS}`;
   console.log('Récupération détail quête depuis API:', questId);
 
   const res = await fetch(url);
