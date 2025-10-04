@@ -33,10 +33,12 @@
         <div class="filter-row">
           <div class="filter-group">
             <label>Type de quête</label>
-            <select id="filterType" multiple size="6">
+            <input type="text" id="filterTypeSearch" placeholder="Rechercher un type..." style="width: 100%; margin-bottom: 8px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;">
+            <select id="filterType" multiple size="12">
               <option value="">Tous les types</option>
               <!-- Les options seront ajoutées dynamiquement -->
             </select>
+            <button class="btn" id="onlyMsqBtn" style="width: 100%; margin-top: 8px; background: #1e40af;">📖 Uniquement MSQ</button>
           </div>
 
           <div class="filter-group">

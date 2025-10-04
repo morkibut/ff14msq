@@ -27,6 +27,8 @@ const globalLoader = document.getElementById('globalLoader');
 const toggleFilters = document.getElementById('toggleFilters');
 const filtersPanel = document.getElementById('filtersPanel');
 const filterType = document.getElementById('filterType');
+const filterTypeSearch = document.getElementById('filterTypeSearch');
+const onlyMsqBtn = document.getElementById('onlyMsqBtn');
 const filterExpansion = document.getElementById('filterExpansion');
 const filterRegion = document.getElementById('filterRegion');
 const minLevel = document.getElementById('minLevel');
@@ -149,12 +151,21 @@ export async function refreshModels() {
 // ---------- Recherche ----------
 function getBadgeClass(genre) {
   const g = genre.toLowerCase();
-  if (g.includes('main scenario')) return 'badge badge-msq';
+  if (g.includes('main scenario') || g === 'main quests' ||
+      g === 'ishgardian restoration main quests' ||
+      g === 'cosmic exploration main quests' ||
+      g === 'seventh umbral era' ||
+      g === 'seventh astral era') return 'badge badge-msq';
   if (g.includes('side')) return 'badge badge-side';
   if (g.includes('class')) return 'badge badge-class';
   if (g.includes('role')) return 'badge badge-role';
   if (g.includes('beast tribe') || g.includes('tribal')) return 'badge badge-beast';
   return 'badge';
+}
+
+// Fonction pour obtenir le texte du badge traduit
+function getBadgeText(genre) {
+  return translateType(genre) || genre;
 }
 
 export async function doSearch(searchTerm, currentFilters = {}) {
@@ -167,7 +178,14 @@ export async function doSearch(searchTerm, currentFilters = {}) {
     log(`Résultats: ${result.quests.length} (total: ${result.total})`);
     resultsDiv.innerHTML = result.quests.length ? '' : '<p>Aucune quête trouvée.</p>';
 
-    for (const qst of result.quests) {
+    // Trier les quêtes par niveau croissant
+    const sortedQuests = result.quests.sort((a, b) => {
+      const levelA = a.ClassJobLevel0 || 0;
+      const levelB = b.ClassJobLevel0 || 0;
+      return levelA - levelB;
+    });
+
+    for (const qst of sortedQuests) {
       const div = document.createElement('div');
       div.className = 'result';
 
@@ -185,7 +203,7 @@ export async function doSearch(searchTerm, currentFilters = {}) {
       // Construire les badges de manière plus robuste
       let badges = '';
       if (genre && genre !== 'Type inconnu') {
-        badges += `<span class="${getBadgeClass(genre)}">${genre}</span>`;
+        badges += `<span class="${getBadgeClass(genre)}">${getBadgeText(genre)}</span>`;
       }
       if (expansion) {
         badges += ` <span class="badge badge-expansion">${expansion}</span>`;
@@ -226,8 +244,15 @@ async function loadMoreResults(searchTerm, filters, offset) {
     const loadMoreBtn = resultsDiv.querySelector('.load-more');
     if (loadMoreBtn) loadMoreBtn.remove();
 
+    // Trier les quêtes par niveau croissant
+    const sortedQuests = result.quests.sort((a, b) => {
+      const levelA = a.ClassJobLevel0 || 0;
+      const levelB = b.ClassJobLevel0 || 0;
+      return levelA - levelB;
+    });
+
     // Ajouter les nouveaux résultats
-    for (const qst of result.quests) {
+    for (const qst of sortedQuests) {
       const div = document.createElement('div');
       div.className = 'result';
 
@@ -245,7 +270,7 @@ async function loadMoreResults(searchTerm, filters, offset) {
       // Construire les badges de manière plus robuste
       let badges = '';
       if (genre && genre !== 'Type inconnu') {
-        badges += `<span class="${getBadgeClass(genre)}">${genre}</span>`;
+        badges += `<span class="${getBadgeClass(genre)}">${getBadgeText(genre)}</span>`;
       }
       if (expansion) {
         badges += ` <span class="badge badge-expansion">${expansion}</span>`;
@@ -342,6 +367,103 @@ export async function openQuestWithSummary(id, container, allQuests) {
 let currentFilters = {};
 let filterMetadata = null;
 
+// Mapping des traductions des types de quêtes
+const typeTranslations = {
+  // Vrais types MSQ
+  'Main Quests': 'Quêtes principales',
+  'Ishgardian Restoration Main Quests': 'Quêtes principales de restauration d\'Ishgard',
+  'Cosmic Exploration Main Quests': 'Quêtes principales d\'exploration cosmique',
+  'Seventh Umbral Era': 'Septième ère ombrale',
+  'Seventh Astral Era': 'Septième ère astrale',
+  // Anciens types (au cas où)
+  'Main Scenario Quest': 'Quête d\'épopée principale',
+  'Main Scenario (A Realm Reborn)': 'Épopée principale (A Realm Reborn)',
+  'Main Scenario (Heavensward)': 'Épopée principale (Heavensward)',
+  'Main Scenario (Stormblood)': 'Épopée principale (Stormblood)',
+  'Main Scenario (Shadowbringers)': 'Épopée principale (Shadowbringers)',
+  'Main Scenario (Endwalker)': 'Épopée principale (Endwalker)',
+  'Main Scenario (Dawntrail)': 'Épopée principale (Dawntrail)',
+  'Side Quest': 'Quête secondaire',
+  'Class Quest': 'Quête de classe',
+  'Job Quest': 'Quête de job',
+  'Role Quest': 'Quête de rôle',
+  'Beast Tribe Quest': 'Quête de tribu bestiale',
+  'Tribal Quest': 'Quête tribale',
+  'Grand Company Quest': 'Quête de grande compagnie',
+  'Hunting Log': 'Carnet de chasse',
+  'Levequest': 'Mandat',
+  'Feature Quest': 'Quête de fonctionnalité',
+  'Seasonal Event': 'Événement saisonnier',
+  'Halloween Event': 'Événement Halloween',
+  'Little Ladies\' Day Event': 'Événement Journée des petites dames',
+  'Hatching-tide Event': 'Événement Fête des œufs',
+  'Moonfire Faire Event': 'Événement Fête de la lune de feu',
+  'Starlight Celebration Event': 'Événement Célébration des étoiles',
+  'Heavensturn Event': 'Événement Nouvel an céleste',
+  'All Saints\' Wake Event': 'Événement Veillée de tous les saints',
+  'Make It Rain Event': 'Événement Fais pleuvoir',
+  'The Rising Event': 'Événement L\'ascension',
+  'Realm Reborn (Patch)': 'Realm Reborn (Patch)',
+  'Heavensward (Patch)': 'Heavensward (Patch)',
+  'Stormblood (Patch)': 'Stormblood (Patch)',
+  'Shadowbringers (Patch)': 'Shadowbringers (Patch)',
+  'Endwalker (Patch)': 'Endwalker (Patch)',
+  'Dawntrail (Patch)': 'Dawntrail (Patch)',
+  // Artisanat
+  'Alchemist Quests': 'Quêtes d\'alchimiste',
+  'Armorer Quests': 'Quêtes d\'armurier',
+  'Blacksmith Quests': 'Quêtes de forgeron',
+  'Carpenter Quests': 'Quêtes de menuisier',
+  'Culinarian Quests': 'Quêtes de cuisinier',
+  'Goldsmith Quests': 'Quêtes d\'orfèvre',
+  'Leatherworker Quests': 'Quêtes de tanneur',
+  'Weaver Quests': 'Quêtes de tisserand',
+  // Récolte
+  'Botanist Quests': 'Quêtes de botaniste',
+  'Fisher Quests': 'Quêtes de pêcheur',
+  'Miner Quests': 'Quêtes de mineur',
+  // Classes DPS
+  'Monk Quests': 'Quêtes de moine',
+  'Dragoon Quests': 'Quêtes de dragon',
+  'Ninja Quests': 'Quêtes de ninja',
+  'Samurai Quests': 'Quêtes de samouraï',
+  'Reaper Quests': 'Quêtes de faucheur',
+  'Viper Quests': 'Quêtes de vipère',
+  'Bard Quests': 'Quêtes de barde',
+  'Machinist Quests': 'Quêtes de machiniste',
+  'Dancer Quests': 'Quêtes de danseur',
+  'Red Mage Quests': 'Quêtes de mage rouge',
+  'Black Mage Quests': 'Quêtes de mage noir',
+  'Summoner Quests': 'Quêtes d\'invocateur',
+  'Pictomancer Quests': 'Quêtes de pictomancien',
+  // Tanks
+  'Paladin Quests': 'Quêtes de paladin',
+  'Warrior Quests': 'Quêtes de guerrier',
+  'Dark Knight Quests': 'Quêtes de chevalier noir',
+  'Gunbreaker Quests': 'Quêtes de pisto-sabreur',
+  // Healers
+  'White Mage Quests': 'Quêtes de mage blanc',
+  'Scholar Quests': 'Quêtes d\'érudit',
+  'Astrologian Quests': 'Quêtes d\'astrologue',
+  'Sage Quests': 'Quêtes de sage',
+  // Classes limitées
+  'Blue Mage Quests': 'Quêtes de mage bleu',
+  'Arcanist Quests': 'Quêtes d\'arcaniste',
+  'Conjurer Quests': 'Quêtes d\'élémentaliste',
+  'Gladiator Quests': 'Quêtes de gladiateur',
+  'Lancer Quests': 'Quêtes de lancier',
+  'Marauder Quests': 'Quêtes de maraudeur',
+  'Pugilist Quests': 'Quêtes de pugiliste',
+  'Rogue Quests': 'Quêtes de voleur',
+  'Thaumaturge Quests': 'Quêtes de thaumaturge',
+  'Archer Quests': 'Quêtes d\'archer'
+};
+
+// Fonction pour traduire un type
+function translateType(type) {
+  return typeTranslations[type] || type;
+}
+
 export async function loadFilterMetadata() {
   try {
     filterMetadata = await fetchFilterMetadata();
@@ -384,10 +506,16 @@ function populateFilterOptions() {
   sortedTypes.forEach(type => {
     const typeLower = type.toLowerCase();
 
-    if (typeLower.includes('main scenario')) {
+    if (typeLower === 'main quests' ||
+        typeLower === 'ishgardian restoration main quests' ||
+        typeLower === 'cosmic exploration main quests' ||
+        typeLower === 'seventh umbral era' ||
+        typeLower === 'seventh astral era' ||
+        typeLower.includes('main scenario')) {
       const option = document.createElement('option');
       option.value = type;
-      option.textContent = type;
+      option.textContent = translateType(type);
+      option.setAttribute('data-original', type); // Garder la valeur originale pour la recherche
       msqGroup.appendChild(option);
     } else if (typeLower.includes('mage') || typeLower.includes('knight') || typeLower.includes('monk') ||
                typeLower.includes('bard') || typeLower.includes('dragoon') || typeLower.includes('ninja') ||
@@ -400,25 +528,29 @@ function populateFilterOptions() {
                typeLower.includes('role quests')) {
       const option = document.createElement('option');
       option.value = type;
-      option.textContent = type;
+      option.textContent = translateType(type);
+      option.setAttribute('data-original', type);
       classGroup.appendChild(option);
     } else if (typeLower.includes('smith') || typeLower.includes('armor') || typeLower.includes('goldsmith') ||
                typeLower.includes('leatherworker') || typeLower.includes('weaver') || typeLower.includes('alchemist') ||
                typeLower.includes('carpenter') || typeLower.includes('blacksmith') || typeLower.includes('culinarian')) {
       const option = document.createElement('option');
       option.value = type;
-      option.textContent = type;
+      option.textContent = translateType(type);
+      option.setAttribute('data-original', type);
       craftGroup.appendChild(option);
     } else if (typeLower.includes('miner') || typeLower.includes('botanist') || typeLower.includes('fisher')) {
       const option = document.createElement('option');
       option.value = type;
-      option.textContent = type;
+      option.textContent = translateType(type);
+      option.setAttribute('data-original', type);
       gatherGroup.appendChild(option);
     } else {
       // Autres types non catégorisés - ajouter directement au select
       const option = document.createElement('option');
       option.value = type;
-      option.textContent = type;
+      option.textContent = translateType(type);
+      option.setAttribute('data-original', type);
       filterType.appendChild(option);
     }
   });
@@ -446,6 +578,66 @@ function populateFilterOptions() {
     minLevel.placeholder = filterMetadata.levels.min;
     maxLevel.placeholder = filterMetadata.levels.max;
   }
+
+  // Initialiser le filtrage des options
+  initTypeFilter();
+}
+
+// Fonction pour filtrer les options du select des types
+function initTypeFilter() {
+  filterTypeSearch.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    const options = filterType.querySelectorAll('option');
+
+    options.forEach(option => {
+      if (option.value === '') {
+        // Garder toujours "Tous les types" visible
+        option.style.display = 'block';
+        return;
+      }
+
+      const originalText = option.getAttribute('data-original') || option.textContent;
+      const translatedText = option.textContent;
+
+      const matches = originalText.toLowerCase().includes(searchTerm) ||
+                     translatedText.toLowerCase().includes(searchTerm);
+
+      option.style.display = matches ? 'block' : 'none';
+    });
+  });
+}
+
+// Fonction pour sélectionner uniquement les MSQ
+function selectOnlyMSQ() {
+  const options = filterType.querySelectorAll('option');
+  const msqTypes = [];
+
+  options.forEach(option => {
+    if (option.value && option.getAttribute('data-original')) {
+      const original = option.getAttribute('data-original').toLowerCase();
+      // Les vraies MSQ incluent Main Quests et les ères ombrales/astrales
+      if (original === 'main quests' ||
+          original === 'ishgardian restoration main quests' ||
+          original === 'cosmic exploration main quests' ||
+          original === 'seventh umbral era' ||
+          original === 'seventh astral era') {
+        msqTypes.push(option.value);
+      }
+    }
+  });
+
+  // Désélectionner tout
+  options.forEach(option => {
+    option.selected = false;
+  });
+
+  // Sélectionner les MSQ
+  msqTypes.forEach(type => {
+    const option = Array.from(options).find(opt => opt.value === type);
+    if (option) option.selected = true;
+  });
+
+  log(`Sélection automatique de ${msqTypes.length} types MSQ`);
 }
 
 function getSelectedFilters() {
@@ -525,6 +717,9 @@ export function initEvents(allQuests, datasetRef) {
     filtersPanel.style.display = isVisible ? 'none' : 'block';
     toggleFilters.textContent = isVisible ? 'Filtres ▼' : 'Filtres ▲';
   });
+
+  // Bouton "Uniquement MSQ"
+  onlyMsqBtn.addEventListener('click', selectOnlyMSQ);
 
   // Appliquer les filtres
   applyFilters.addEventListener('click', () => {
