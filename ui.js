@@ -388,6 +388,102 @@ function renderQuestDetails(quest) {
     `;
   }
 
+  // Informations supplémentaires
+  if (quest.ClassJobCategory?.Name_fr) {
+    content += `
+      <div class="quest-section">
+        <h3>⚔️ Classe/Job requis</h3>
+        <span class="badge badge-job">${quest.ClassJobCategory.Name_fr}</span>
+      </div>
+    `;
+  }
+
+  if (quest.BeastTribe?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>🐺 Tribu bestiale</h3>
+        <span class="badge badge-beast">${quest.BeastTribe.Name_en}</span>
+      </div>
+    `;
+  }
+
+  if (quest.InstanceContent?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>🏰 Instance</h3>
+        <span class="badge">${quest.InstanceContent.Name_en}</span>
+      </div>
+    `;
+  }
+
+  if (quest.GrandCompany?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>🏛️ Grande compagnie</h3>
+        <span class="badge">${quest.GrandCompany.Name_en}</span>
+      </div>
+    `;
+  }
+
+  if (quest.Header) {
+    content += `
+      <div class="quest-section">
+        <h3>📋 Header</h3>
+        <p>${quest.Header}</p>
+      </div>
+    `;
+  }
+
+  const targetLevels = [];
+  if (quest.ClassJobLevel0Target) targetLevels.push(`Niveau 0: ${quest.ClassJobLevel0Target}`);
+  if (quest.ClassJobLevel1Target) targetLevels.push(`Niveau 1: ${quest.ClassJobLevel1Target}`);
+  if (targetLevels.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>🎯 Niveaux cibles</h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${targetLevels.map(level => `<span class="badge">${level}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  if (quest.LeveRewardItem?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>📜 Récompenses leves</h3>
+        <span class="badge">${quest.LeveRewardItem.Name_en}</span>
+      </div>
+    `;
+  }
+
+  if (quest.EventItem?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>🎉 Type d'événement</h3>
+        <span class="badge">${quest.EventItem.Name_en}</span>
+      </div>
+    `;
+  }
+
+  if (quest.Icon) {
+    content += `
+      <div class="quest-section">
+        <h3>🖼️ Icône</h3>
+        <img src="https://xivapi.com${quest.Icon}" style="width: 48px; height: 48px;" alt="Icône de la quête">
+      </div>
+    `;
+  }
+
+  if (quest.ItemRewardType?.Name_en) {
+    content += `
+      <div class="quest-section">
+        <h3>🎁 Type de récompense d'item</h3>
+        <span class="badge">${quest.ItemRewardType.Name_en}</span>
+      </div>
+    `;
+  }
+
   // Journal
   const journals = [];
   if (quest.Journal?.Value) journals.push(quest.Journal.Value);
