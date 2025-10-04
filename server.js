@@ -41,6 +41,21 @@ app.get('/api/quests/:id', async (req, res) => {
   }
 });
 
+// GET /api/quests/:id/full - Récupérer les détails complets d'une quête
+app.get('/api/quests/:id/full', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quest = await getQuestFullDetail(id);
+    if (!quest) {
+      return res.status(404).json({ error: 'Quête non trouvée' });
+    }
+    res.json(quest);
+  } catch (error) {
+    console.error('Erreur GET /api/quests/:id/full:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/quests - Récupérer toutes les quêtes
 app.get('/api/quests', async (req, res) => {
   try {
@@ -320,7 +335,7 @@ async function clearFilterMetadata() {
 
 const API_BASE = 'https://xivapi.com';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const COLUMNS = 'ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,ClassJobCategory.Name_fr,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType,ClassJobLevel0Target,ClassJobLevel1Target';
+const COLUMNS = 'ID,Name,Name_en,Name_fr,JournalGenre.Name_en,ClassJobLevel0,ClassJobLevel1,EventIconType,Icon,Expansion.Name_en,PlaceName.Name_en,IssuerStart.Name_en,ClassJobCategory.Name_en,ClassJobCategory.Name_fr,BeastTribe.Name_en,InstanceContent.Name_en,GrandCompany.Name_en,ItemRewardType,ClassJobLevel0Target,ClassJobLevel1Target,Introduction,Header,ToDo.Value,ToDo.Value_en,ToDo.Value_fr,Journal.Value,Journal.Value_en,Journal.Value_fr,Dialogue.Value,Dialogue.Value_en,Dialogue.Value_fr,PreviousQuest0.ID,PreviousQuest0.Name,PreviousQuest0.Name_en,PreviousQuest0.Name_fr,PreviousQuest1.ID,PreviousQuest1.Name,PreviousQuest1.Name_en,PreviousQuest1.Name_fr,PreviousQuest2.ID,PreviousQuest2.Name,PreviousQuest2.Name_en,PreviousQuest2.Name_fr,NextQuest0.ID,NextQuest0.Name,NextQuest0.Name_en,NextQuest0.Name_fr,NextQuest1.ID,NextQuest1.Name,NextQuest1.Name_en,NextQuest1.Name_fr,NextQuest2.ID,NextQuest2.Name,NextQuest2.Name_en,NextQuest2.Name_fr,ItemReward0.ID,ItemReward0.Name,ItemReward0.Name_en,ItemReward0.Name_fr,ItemReward0.Icon,ItemReward1.ID,ItemReward1.Name,ItemReward1.Name_en,ItemReward1.Name_fr,ItemReward1.Icon,ItemReward2.ID,ItemReward2.Name,ItemReward2.Name_en,ItemReward2.Name_fr,ItemReward2.Icon,GilReward,ExperiencePoints,AllianceLeveReward,CompanyLeveReward';
 
 
 async function fetchQuestPage(page) {
@@ -369,6 +384,34 @@ async function getQuestDetail(questId) {
   const res = await fetch(url);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
+}
+
+async function getQuestFullDetail(questId) {
+  // Vérifier d'abord dans le cache des détails complets
+  try {
+    const cached = await db.get(`quest-full-${questId}`);
+    if (cached) {
+      console.log(`Détails complets de la quête ${questId} servis depuis cache`);
+      return cached;
+    }
+  } catch (error) {
+    // Pas en cache, continuer
+  }
+
+  // Récupérer depuis l'API externe avec toutes les colonnes
+  const fullColumns = COLUMNS + ',TextData.ToDo,TextData.Journal,TextData.Dialogue,TextData.System,TextData.QA_Question,TextData.QA_Answer';
+  const url = `${API_BASE}/quest/${questId}?language=fr&columns=${fullColumns}`;
+  console.log('Récupération détails complets quête depuis API:', questId);
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const quest = await res.json();
+
+  // Mettre en cache
+  await db.put(`quest-full-${questId}`, quest);
+  console.log(`Détails complets de la quête ${questId} mis en cache`);
+
+  return quest;
 }
 
 async function generateSummary(settings, questName, questId, textChunks) {

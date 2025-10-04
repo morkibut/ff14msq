@@ -140,6 +140,28 @@
       </div>
     </div>
   </dialog>
+
+  <!-- Modal Détails Complets de Quête -->
+  <dialog id="questDetailDialog" style="max-width: 90vw; max-height: 90vh; width: 1000px;">
+    <div class="inner" style="max-height: 85vh; overflow-y: auto;">
+      <div id="questDetailHeader">
+        <h2 id="questDetailTitle">Chargement...</h2>
+        <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div id="questDetailMeta"></div>
+          <div class="row" style="gap: 8px;">
+            <button class="btn" id="questDetailPrev" disabled>⬅️ Précédente</button>
+            <button class="btn" id="questDetailNext" disabled>Suivante ➡️</button>
+            <button class="btn" id="closeQuestDetailDialog">Fermer</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="questDetailContent">
+        <div class="loader" style="width:32px; height:32px; margin:20px auto;"></div>
+        <div style="text-align: center;">Chargement des détails...</div>
+      </div>
+    </div>
+  </dialog>
   </dialog>
 
   <!-- Loader global -->

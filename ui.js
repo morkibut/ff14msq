@@ -23,6 +23,15 @@ const closeSummaryDialog = document.getElementById('closeSummaryDialog');
 const togglePrompt = document.getElementById('togglePrompt');
 const globalLoader = document.getElementById('globalLoader');
 
+// Modal détails quête
+const questDetailDialog = document.getElementById('questDetailDialog');
+const questDetailTitle = document.getElementById('questDetailTitle');
+const questDetailMeta = document.getElementById('questDetailMeta');
+const questDetailContent = document.getElementById('questDetailContent');
+const questDetailPrev = document.getElementById('questDetailPrev');
+const questDetailNext = document.getElementById('questDetailNext');
+const closeQuestDetailDialog = document.getElementById('closeQuestDetailDialog');
+
 // Filtres
 const toggleFilters = document.getElementById('toggleFilters');
 const filtersPanel = document.getElementById('filtersPanel');
@@ -217,7 +226,7 @@ export async function doSearch(searchTerm, currentFilters = {}) {
       const locationText = region ? ` (${region})` : '';
 
       div.innerHTML = `<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
-      div.addEventListener('click', () => openQuestWithSummary(qst.ID, div, []));
+      div.addEventListener('click', () => openQuestDetails(qst.ID, sortedQuests));
       resultsDiv.appendChild(div);
     }
 
@@ -284,7 +293,7 @@ async function loadMoreResults(searchTerm, filters, offset) {
       const locationText = region ? ` (${region})` : '';
 
       div.innerHTML = `<strong>${title}</strong>${badges}<br><strong>${levelText}</strong>${locationText} <small style="font-size: 10px;">ID: ${qst.ID}</small>`;
-      div.addEventListener('click', () => openQuestWithSummary(qst.ID, div, []));
+      div.addEventListener('click', () => openQuestDetails(qst.ID, result.quests || []));
       resultsDiv.appendChild(div);
     }
 
@@ -302,9 +311,264 @@ async function loadMoreResults(searchTerm, filters, offset) {
 }
 
 // ---------- Ouverture d’une quête & Génération du résumé ----------
-import { extractTextChunks, generateSummary, loadAllQuests, fetchOpenRouterModels, filterFreeModels, fetchQuestDetail } from './api.js';
+import { extractTextChunks, generateSummary, loadAllQuests, fetchOpenRouterModels, filterFreeModels, fetchQuestDetail, fetchQuestFullDetail } from './api.js';
 import { clearQuestsCache } from './storage.js';
 
+// ---------- Ouverture des détails complets d'une quête ----------
+let currentQuestId = null;
+let allQuestsList = [];
+
+export async function openQuestDetails(id, allQuests = []) {
+  currentQuestId = id;
+  allQuestsList = allQuests;
+
+  try {
+    questDetailDialog.showModal();
+    questDetailContent.innerHTML = '<div class="loader" style="width:32px; height:32px; margin:20px auto;"></div><div style="text-align: center;">Chargement des détails...</div>';
+
+    const detail = await fetchQuestFullDetail(id);
+    renderQuestDetails(detail);
+
+    // Mettre à jour les boutons de navigation
+    updateNavigationButtons(id, allQuests);
+  } catch (e) {
+    log('Erreur détails quête: ' + e.message);
+    questDetailContent.innerHTML = `<div style="color:#b91c1c; text-align: center;">Erreur lors du chargement: ${e.message}</div>`;
+  }
+}
+
+// ---------- Fonction pour rendre les détails de la quête ----------
+function renderQuestDetails(quest) {
+  const name = quest.Name || quest.Name_fr || quest.Name_en || '(Sans nom)';
+  const level = quest.ClassJobLevel0 || '?';
+  const issuer = quest.IssuerStart?.Name_en || quest.IssuerStart?.Name_fr || 'Inconnu';
+  const location = quest.PlaceName?.Name_en || quest.PlaceName?.Name_fr || 'Inconnue';
+  const expansion = quest.Expansion?.Name_en || quest.Expansion?.Name_fr || '';
+  const genre = quest.JournalGenre?.Name_en || 'Type inconnu';
+
+  // Header
+  questDetailTitle.textContent = name;
+  questDetailMeta.innerHTML = `
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <span class="badge badge-msq">${translateType(genre)}</span>
+      ${expansion ? `<span class="badge badge-expansion">${expansion}</span>` : ''}
+      <span style="font-weight: 600;">Niveau ${level}</span>
+      <span>📍 ${location}</span>
+      <span>👤 ${issuer}</span>
+    </div>
+  `;
+
+  // Contenu détaillé
+  let content = '';
+
+  // Introduction
+  if (quest.Introduction && typeof quest.Introduction === 'string') {
+    content += `
+      <div class="quest-section">
+        <h3>📖 Description</h3>
+        <p>${quest.Introduction.replace(/\n/g, '<br>')}</p>
+      </div>
+    `;
+  }
+
+  // Objectifs
+  const objectives = [];
+  if (quest.ToDo?.Value) objectives.push(quest.ToDo.Value);
+  if (quest.ToDo?.Value_fr) objectives.push(quest.ToDo.Value_fr);
+  if (quest.ToDo?.Value_en) objectives.push(quest.ToDo.Value_en);
+
+  if (objectives.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>🎯 Objectifs</h3>
+        <ul>
+          ${objectives.map(obj => `<li>${obj}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  // Journal
+  const journals = [];
+  if (quest.Journal?.Value) journals.push(quest.Journal.Value);
+  if (quest.Journal?.Value_fr) journals.push(quest.Journal.Value_fr);
+  if (quest.Journal?.Value_en) journals.push(quest.Journal.Value_en);
+
+  if (journals.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>📜 Journal</h3>
+        <div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+          ${journals.map(journal => `<p>${typeof journal === 'string' ? journal.replace(/\n/g, '<br>') : journal}</p>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Quêtes précédentes
+  const prevQuests = [];
+  for (let i = 0; i < 3; i++) {
+    const prevQuest = quest[`PreviousQuest${i}`];
+    if (prevQuest?.ID) {
+      prevQuests.push(prevQuest);
+    }
+  }
+
+  if (prevQuests.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>⬅️ Quêtes précédentes</h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${prevQuests.map(q => `
+            <button class="btn quest-link" data-quest-id="${q.ID}" style="font-size: 14px;">
+              ${q.Name || q.Name_fr || q.Name_en || 'Quête inconnue'}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Quêtes suivantes
+  const nextQuests = [];
+  for (let i = 0; i < 3; i++) {
+    const nextQuest = quest[`NextQuest${i}`];
+    if (nextQuest?.ID) {
+      nextQuests.push(nextQuest);
+    }
+  }
+
+  if (nextQuests.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>➡️ Quêtes suivantes</h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${nextQuests.map(q => `
+            <button class="btn quest-link" data-quest-id="${q.ID}" style="font-size: 14px;">
+              ${q.Name || q.Name_fr || q.Name_en || 'Quête inconnue'}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Récompenses
+  const rewards = [];
+
+  // Items
+  for (let i = 0; i < 3; i++) {
+    const item = quest[`ItemReward${i}`];
+    if (item?.ID) {
+      rewards.push(`
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${item.Icon ? `<img src="https://xivapi.com${item.Icon}" style="width: 24px; height: 24px;" alt="">` : '📦'}
+          <span>${item.Name || item.Name_fr || item.Name_en || 'Objet inconnu'}</span>
+        </div>
+      `);
+    }
+  }
+
+  // Gil
+  if (quest.GilReward) {
+    rewards.push(`<div>💰 ${quest.GilReward.toLocaleString()} gils</div>`);
+  }
+
+  // Expérience
+  if (quest.ExperiencePoints) {
+    rewards.push(`<div>⭐ ${quest.ExperiencePoints.toLocaleString()} points d'expérience</div>`);
+  }
+
+  if (rewards.length > 0) {
+    content += `
+      <div class="quest-section">
+        <h3>🎁 Récompenses</h3>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          ${rewards.join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Résumé IA (optionnel)
+  content += `
+    <div class="quest-section">
+      <h3>🤖 Résumé IA</h3>
+      <button class="btn" id="generateAISummary" style="margin-bottom: 12px;">Générer un résumé IA</button>
+      <div id="aiSummaryContainer"></div>
+    </div>
+  `;
+
+  questDetailContent.innerHTML = content;
+
+  // Ajouter les event listeners pour les liens de quête
+  document.querySelectorAll('.quest-link').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const questId = e.target.getAttribute('data-quest-id');
+      if (questId) {
+        openQuestDetails(questId, allQuestsList);
+      }
+    });
+  });
+
+  // Event listener pour le résumé IA
+  document.getElementById('generateAISummary')?.addEventListener('click', () => generateAISummaryForQuest(quest));
+}
+
+// ---------- Navigation entre quêtes ----------
+function updateNavigationButtons(currentId, allQuests) {
+  if (!allQuests || allQuests.length === 0) {
+    questDetailPrev.disabled = true;
+    questDetailNext.disabled = true;
+    return;
+  }
+
+  const currentIndex = allQuests.findIndex(q => q.ID == currentId);
+  questDetailPrev.disabled = currentIndex <= 0;
+  questDetailNext.disabled = currentIndex >= allQuests.length - 1;
+
+  questDetailPrev.onclick = () => {
+    if (currentIndex > 0) {
+      openQuestDetails(allQuests[currentIndex - 1].ID, allQuests);
+    }
+  };
+
+  questDetailNext.onclick = () => {
+    if (currentIndex < allQuests.length - 1) {
+      openQuestDetails(allQuests[currentIndex + 1].ID, allQuests);
+    }
+  };
+}
+
+// ---------- Génération résumé IA dans la modale ----------
+async function generateAISummaryForQuest(quest) {
+  const container = document.getElementById('aiSummaryContainer');
+  const button = document.getElementById('generateAISummary');
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Génération en cours...';
+
+    container.innerHTML = '<div style="text-align: center;"><div class="loader" style="width:24px; height:24px; margin:10px auto;"></div>Génération du résumé...</div>';
+
+    const settings = getSettings();
+    const chunks = extractTextChunks(quest);
+    const name = quest.Name || quest.Name_fr || quest.Name_en || '(Sans nom)';
+
+    const txt = await generateSummary(settings, name, quest.ID, chunks);
+
+    container.innerHTML = `<div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border);"><strong>Résumé IA :</strong><br>${typeof txt === 'string' ? txt.replace(/\n/g, '<br>') : txt}</div>`;
+
+    button.textContent = 'Régénérer le résumé';
+  } catch (e) {
+    container.innerHTML = `<div style="color:#b91c1c;">Erreur: ${e.message}</div>`;
+    button.textContent = 'Réessayer';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// ---------- Fonction pour ouvrir le résumé IA (ancienne fonctionnalité) ----------
 export async function openQuestWithSummary(id, container, allQuests) {
   // Vérifier si un résumé est déjà affiché ou en cours
   const existingSummary = container.querySelector('.quest-summary');
@@ -325,7 +589,7 @@ export async function openQuestWithSummary(id, container, allQuests) {
 
     if (cachedSummary) {
       // Afficher le résumé en cache immédiatement
-      summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA (depuis cache)</div><div>${cachedSummary.replace(/\n/g, '<br>')}</div>`;
+      summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA (depuis cache)</div><div>${typeof cachedSummary === 'string' ? cachedSummary.replace(/\n/g, '<br>') : cachedSummary}</div>`;
       log('Résumé chargé depuis le cache local.');
     } else {
       // Générer un nouveau résumé
@@ -348,7 +612,7 @@ export async function openQuestWithSummary(id, container, allQuests) {
         // Stocker en cache
         await setCachedSummary(id, settings, txt);
 
-        summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${txt.replace(/\n/g, '<br>')}</div>`;
+        summaryDiv.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">Résumé IA</div><div>${typeof txt === 'string' ? txt.replace(/\n/g, '<br>') : txt}</div>`;
         log('Génération réussie et stockée en cache.');
       } catch (e) {
         globalLoader.classList.add('hidden');
@@ -781,5 +1045,16 @@ export function initEvents(allQuests, datasetRef) {
       return;
     }
     debounceT = setTimeout(() => doSearch(val, currentFilters), 200);
+  });
+
+  // ---------- Événements pour la modale de détails ----------
+  closeQuestDetailDialog.addEventListener('click', () => {
+    questDetailDialog.close();
+  });
+
+  questDetailDialog.addEventListener('click', (e) => {
+    if (e.target === questDetailDialog) {
+      questDetailDialog.close();
+    }
   });
 }

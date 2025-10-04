@@ -98,6 +98,15 @@ export async function fetchQuestDetail(questId) {
   return res.json();
 }
 
+// ---------- Détails complets d'une quête avec toutes les données ----------
+export async function fetchQuestFullDetail(questId) {
+  const url = `${SERVER_BASE}/quests/${questId}/full`;
+  console.log('GET ' + url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
 // ---------- Extraction de texte ----------
 export function extractTextChunks(detail) {
   const chunks = [];

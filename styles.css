@@ -402,3 +402,79 @@ dialog label div {
   gap: 8px;
   justify-content: flex-end;
 }
+
+/* Styles pour la modale de détails de quête */
+#questDetailDialog {
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 0;
+  background: var(--card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+#questDetailDialog .inner {
+  padding: 20px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+#questDetailHeader h2 {
+  margin: 0 0 16px 0;
+  color: var(--primary);
+  font-size: 24px;
+  font-family: 'Cinzel', serif;
+}
+
+#questDetailMeta {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.quest-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.quest-section h3 {
+  margin: 0 0 12px 0;
+  color: var(--primary);
+  font-size: 18px;
+  font-family: 'Cinzel', serif;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.quest-section p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.quest-section ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.quest-section li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.quest-link {
+  background: var(--secondary) !important;
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+  padding: 6px 12px !important;
+  margin: 2px !important;
+  transition: all 0.2s ease !important;
+}
+
+.quest-link:hover {
+  background: var(--accent) !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+}
